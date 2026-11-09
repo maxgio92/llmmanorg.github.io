@@ -49,8 +49,7 @@ the media worker's spawn path.
 
 A model is its weights, the learned numbers in the GGUF, plus the code
 that runs them. NVIDIA's code lives in NeMo, its Python toolkit for
-speech, so running Canary anywhere else means a *port*: the same steps
-rewritten in another language.
+speech, so running Canary anywhere else means a port.
 
 A C++ port exists, but it bundles its own patched ggml, which would put
 two copies of the library in one process. Every operation Canary needs
