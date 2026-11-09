@@ -47,7 +47,11 @@ When a GGUF header says Canary, the daemon spawns itself as a speech
 worker, on the host or in the CPU llama.cpp container image, through
 the media worker's spawn path.
 
-A C++ port of Canary exists, but it carries a patched copy of ggml:
+A model is two things: its weights, the learned numbers in the GGUF,
+and the code that runs them, from audio in to text out. NVIDIA's code
+is in NeMo, its Python toolkit for speech models. Running Canary
+anywhere else means a *port*: the same steps rewritten in another
+language. A C++ port exists, but it carries a patched copy of ggml:
 two copies of the library in the process tree, two versions to track.
 Every operation Canary needs is already in the ggml llmman loads, from
 2D convolutions and masked softmax to a sequence operator that doubles
@@ -65,8 +69,7 @@ lookup turns the ids into text.
 
 A WAV holds *samples*: one pressure reading every 62.5 µs. The model
 works on *frames*, short slices over which a vowel or a
-consonant is roughly stable. The recipe comes from NeMo, the NVIDIA
-PyTorch toolkit Canary was trained and published with, and from the
+consonant is roughly stable. The recipe comes from NeMo and from the
 GGUF's front-end metadata:
 
 1. **Pre-emphasis:** subtract 0.97 times the previous sample, a mild
