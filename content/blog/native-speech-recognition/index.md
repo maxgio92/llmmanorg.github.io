@@ -56,7 +56,7 @@ two copies of the library in one process. Every operation Canary needs
 is already in the ggml llmman loads, so llmman's port is Rust on that
 library, like its LTX-2.3 and Qwen-Image pipelines.
 
-![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel filterbank produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder subsamples it eight times to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
+![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel bands step produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder subsamples it eight times to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
 
 The request passes four stages, and each one feeds the next: the front
 end turns samples into mel bands, the encoder turns mel bands into audio
@@ -81,13 +81,13 @@ GGUF's front-end metadata:
 5. **Power spectrum:** a 512-point Fourier transform gives 257 *bins* per
    frame, one energy value per 31.25 Hz slice, from 0 to 8 kHz.
 
-Those bins are evenly spaced in hertz, and hearing is not. We tell
-100 Hz from 200 Hz easily and 7,000 Hz from 7,100 Hz hardly at all. The
-mel scale spaces pitch the way hearing does, and a *mel band* is one
-triangular filter laid out on it: narrow and dense at low frequencies,
-wide and sparse at high ones. Canary uses 128, so each frame's 257 bins
-become 128 numbers. A floored logarithm and per-band normalisation over
-the clip finish the front end.
+Those bins are evenly spaced in hertz, but we tell 100 Hz from 200 Hz
+easily and 7,000 Hz from 7,100 Hz hardly at all. So the front end
+groups neighbouring bins into 128 *mel bands*, frequency slices narrow
+at low pitches and wide at high ones, and blends each band's energy
+into one number. Each frame's 257 numbers become 128, one per band, and
+the detail lost is detail we barely hear. A floored logarithm and
+per-band normalisation over the clip finish the front end.
 
 The padding matters: the C++ port pads by reflection, and its notes
 record a visible mel difference from that choice alone. The stage is
