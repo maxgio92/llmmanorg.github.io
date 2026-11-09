@@ -199,7 +199,8 @@ The method is to run the clip through NeMo and save every stage's
 mel spectrogram, the 1,024-value vectors after the shrink and after
 several encoder blocks, and the decoder's score for every possible next
 token. Then the same clip goes through llmman, and the two sets of
-numbers are compared position by position, with two measures:
+numbers are compared position by position. Numbers like 1.29e-4 mean
+1.29 × 10⁻⁴, or 0.000129. The comparison uses two measures:
 
 - **Max absolute difference:** the largest gap between any pair.
 - **Relative rms error:** the typical gap (the root mean square of the
