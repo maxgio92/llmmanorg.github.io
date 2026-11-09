@@ -9,17 +9,20 @@ tags = ["serve", "speech", "ggml"]
 
 
 A 10.55 s WAV goes in. One line of text comes out, 1.7 seconds later.
-`llmman serve` now runs NVIDIA's Canary 1B v2 speech model itself, on
-the ggml library it already loads for its image and video models.
+
+Until now, llmman sent every transcription request to llama-server,
+the llama.cpp program it uses to run most models. llama-server
+understands one kind of speech model: an audio encoder attached to a
+language model. NVIDIA's Canary 1B v2 is built differently. One part,
+the encoder, reads the audio, and a separate part, the decoder, writes
+the text. llama.cpp has no code for that design, so llmman could not
+run Canary at all. Now `llmman serve` runs it with its own
+implementation, on the ggml library it already uses for image and
+video models.
 
 <!-- more -->
 
 ## Try it
-
-Until now `/v1/audio/transcriptions` went to llama-server, with a
-multimodal projector in front of a language model. Canary is an
-encoder-decoder model llama.cpp has no graph for, so llmman serves it
-itself.
 
 ```sh
 llmman serve
