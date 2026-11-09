@@ -97,33 +97,50 @@ clip, 1,056 frames of 128 mel bands each, one frame every 10 ms.
 
 ## Encoder: from mel bands to audio vectors
 
-The encoder reads the spectrogram and writes one vector per 80 ms of
-audio, a summary of what was said around that moment. It is a
-FastConformer. A *Conformer* block is a Transformer block with a
-9-frame convolution between attention and feed-forward. Attention lets
-every frame see every other, which captures which word a syllable
-belongs to; the convolution captures the local pattern that tells one
-phoneme from the next.
+The encoder turns the spectrogram into a short sequence of vectors, one
+per 80 ms of audio, each describing what was said around that moment.
+It works in two steps: it shrinks the sequence, then refines it.
 
-Attention cost grows with the square of the sequence length, so before
-the first block the encoder shortens the spectrogram in time with three
-stride-2 convolutions, then projects each step to 1,024 values:
+**Shrink.** A *convolution* slides a small window along the frames and,
+at each position, mixes the frames under it into one new value with
+learned weights. With a stride of 2 the window moves two frames at a
+time, so the output is half as long. Three of them in a row cut the
+length by eight, and a final projection gives each step 1,024 values:
 
 ```text
 1,056 frames x 128 bands -> 528 -> 264 -> 132 vectors of 1,024 values
 ```
 
-The 132 vectors then pass through the 32 Conformer blocks, which keep
-their count and size. One encoder pass peaks at 1.23 GB resident on
-Q8_0 and 2.10 GB on F16.
+Shorter is cheaper. The next step compares every vector with every
+other, so its cost grows with the square of the length.
+
+**Refine.** Then 32 identical blocks run over the 132 vectors, keeping
+their count and size. Each block updates every vector three ways:
+
+- **Attention:** the vector looks at all 132 and pulls in the ones that
+  matter to it, such as the rest of its word or sentence.
+- **Convolution:** the vector is mixed with its 4 neighbours on each
+  side, 9 in all, about 0.7 s of audio. This catches local sound
+  patterns, such as where one phoneme ends and the next begins.
+- **Feed-forward:** a small network reworks each vector on its own,
+  using what the other two gathered.
+
+Attention plus feed-forward is a *Transformer* block, the same block
+inside every LLM. Adding the convolution makes it a *Conformer* block,
+and *FastConformer* is NVIDIA's version with the 8x shrink in front.
+One encoder pass peaks at 1.23 GB resident on Q8_0 and 2.10 GB on F16.
 
 ## Decoder: from audio vectors to text
 
-The decoder writes the transcript one token at a time, reading the
-encoder's 132 vectors at every step. It is an 8-layer Transformer over
-16,384 SentencePiece tokens, with *cross-attention* in every layer:
-self-attention looks at the tokens written so far, cross-attention
-looks at the audio vectors.
+The decoder is a Transformer like the one in a chat model. It writes
+the transcript one *token* at a time, where a token is a word or a
+piece of a word from a vocabulary of 16,384. Each of its 8 layers has
+two kinds of attention:
+
+- **Self-attention** looks at the tokens written so far, so the text
+  stays coherent.
+- **Cross-attention** looks at the encoder's 132 vectors, so the text
+  follows the audio.
 
 It starts from a prompt of ten token ids from the GGUF metadata: start
 of transcript, source and target language (the same, for
