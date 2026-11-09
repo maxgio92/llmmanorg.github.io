@@ -73,8 +73,8 @@ LTX-2.3 and Qwen-Image pipelines.
 
 A WAV holds *samples*: one pressure reading every 62.5 µs. The model
 works instead on *frames*, short slices over which a vowel or a
-consonant is roughly stable. The recipe comes from the reference and
-the GGUF's front-end metadata:
+consonant is roughly stable. The recipe comes from NeMo, the NVIDIA PyTorch toolkit Canary was
+trained and published with, and from the GGUF's front-end metadata:
 
 1. **Pre-emphasis:** subtract 0.97 times the previous sample, a mild
    high-pass filter that lifts the quieter consonants.
