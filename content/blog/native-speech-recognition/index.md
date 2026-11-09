@@ -201,6 +201,8 @@ the disconnect, in a debug build.
 
 ## Checked against NeMo
 
+![The NeMo check. Top: the same 10.55 second clip runs through NeMo and through llmman, and every stage is compared. Mel spectrogram: largest gap 0.000129. Encoder blocks: F16 0.04 to 0.12 percent, Q8_0 0.38 to 3.8 percent. Decoder: F16 0.008 to 0.08 percent, Q8_0 0.11 to 2.1 percent. Tokens and text: the same 33 tokens and the same text. Bottom: the same ranges as bars on a log scale, with the F16 encoder sitting on the half-precision floor of 1 part in 2,000, and Q8_0 about ten times higher](nemo-check.svg)
+
 Reading transcripts is a weak test. A port with a wrong padding choice
 still writes the right words on a clean clip and fails quietly on the
 next one. So every stage was checked against NeMo, on one
