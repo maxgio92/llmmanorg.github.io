@@ -11,7 +11,7 @@ A ten second WAV goes in. One line of text comes out, 1.7 seconds
 later. In between, the clip was turned into 160,000 numbers, cut into
 1,056 overlapping frames, read for its frequencies, folded into 128
 bands shaped like human hearing, compressed to 132 vectors, and decoded
-one token at a time. None of that happened in Python or in a second
+one token at a time. None of it ran in Python or in a second
 binary: it ran in `llmman serve`, on the ggml library the daemon
 already loads for its image and video models.
 
@@ -46,6 +46,10 @@ transcribe yet.
 That is the surface. The question is what happens between the WAV
 bytes and the text, and how we know each step is right.
 
+New to speech models? Start with the map in section 2, then read in
+order. Here for the numbers? Sections 7 to 9 give the timings and
+section 11 the comparison against the reference.
+
 ## 2. The whole pipeline at a glance
 
 Here is the map we wanted when we started, in the order a request meets
@@ -64,8 +68,8 @@ the data along the time axis: 160,000 samples become about 1,000
 frames, then 132 vectors, then 33 tokens. The first two stages are
 plain arithmetic in Rust with no learned weights, the next two are
 ggml compute graphs over the weights in the GGUF, and the last is a
-table lookup. Around all five sits a worker process that admits,
-serialises and cancels requests, which section 10 covers.
+table lookup. Around all five sits a worker that admits, serialises
+and cancels requests (section 10).
 
 A few terms recur. A **sample** is one number giving the microphone's
 pressure at one instant. A **frame** is a short slice of samples, here
@@ -77,32 +81,31 @@ vocabulary of 16,384 pieces of text.
 
 ## 3. Why a pipeline of its own
 
-Every GGUF declares its architecture in its header. When the header
-says Canary, the daemon spawns itself as a worker process with a speech
-engine, on the host or inside the CPU llama.cpp container image, through
-the same spawn path the media worker uses. The worker loads the model
-once and serves the transcription route, sharing the serve loop and
-the error shape with the media worker, so speech adds a pipeline and
-not another server. The default transcription prompt the daemon injects
-for llama-server backends is skipped: Canary carries its own, as we'll
-see in section 8.
-
 A C++ port of Canary exists, but it carries a patched copy of ggml,
 which would have meant two copies of the same library in the process
 tree and two versions to track. A pass over the ggml sources found that
 every operation Canary needs already exists in the library llmman
-loads, from 2D convolutions and masked softmax to a state-space op that
-expresses a depthwise kernel. So the graphs are Rust against that
-library, as the LTX-2.3 and Qwen-Image pipelines are.
+loads, from 2D convolutions and masked softmax to a sequence operator
+that doubles as a depthwise convolution over time. So the graphs are
+Rust against that library, as the LTX-2.3 and Qwen-Image pipelines are.
+
+Every GGUF declares its architecture in its header. When the header
+says Canary, the daemon spawns itself as a worker process with a speech
+engine, on the host or inside the CPU llama.cpp container image, through
+the same spawn path the media worker uses. The worker loads the model
+once and serves the transcription route; section 10 covers what it does
+around each request. The default transcription prompt the daemon injects
+for llama-server backends is skipped: Canary carries its own, as we'll
+see in section 8.
 
 ## 4. From bytes to samples
 
 WAV is a container: a header that describes the audio, then a data
 chunk with the samples. The parser walks the chunks with bounds checks
 and takes a byte cap from the caller, so a hostile header cannot make
-it allocate. The contract is narrow on purpose: 16-bit signed integers,
-one channel, 16,000 per second. Resampling inside the worker would have
-been one more stage to check.
+it allocate. We keep the contract narrow on purpose: 16-bit signed integers,
+one channel, 16,000 per second. Resampling would have been one more
+stage to check.
 
 What comes out is what every speech model starts from: a sequence of
 samples, one every 62.5 microseconds, each saying where the
@@ -118,8 +121,8 @@ the reference and from the front-end metadata the GGUF carries.
 
 First, pre-emphasis: each sample has 0.97 times the previous one
 subtracted from it, a mild high-pass filter that lifts the consonants,
-which carry less energy than the vowels. Then 256 zeros of padding on
-each side, so the first frame is centered on the first sample. Then
+which carry less energy than the vowels. Then 256 zeros on each
+side, half a frame, so the first frame is centred on the first sample. Then
 frames of 400 samples (25 ms) are cut starting every 160 samples
 (10 ms), so each frame overlaps its neighbours by 60 percent; a sound
 that falls across a cut is still whole in the frame next to it.
@@ -127,10 +130,10 @@ Finally a Hann window over each frame, a bell curve that fades the
 edges to zero so the cut itself does not add energy the signal never
 had.
 
-Ten seconds of audio becomes about 1,000 frames. The 10.6 s test clip
+Ten seconds of audio becomes about 1,000 frames. The 10.55 s test clip
 yields 1,056. The padding is constant zeros, as in the reference; the
-C++ port pads by reflection, and its own notes record a maximum mel
-difference of 5.19 on one clip from that choice alone.
+C++ port pads by reflection, and its own notes record a visible mel
+difference from that choice alone.
 
 ## 6. From frames to a spectrogram, then to mel bands
 
@@ -152,7 +155,7 @@ is the spectrogram: 257 rows of frequency, one column every 10 ms.
 Those bins are evenly spaced in hertz, and hearing is not. We tell 100
 Hz from 200 Hz easily and 7,000 Hz from 7,100 Hz hardly at all;
 perceived pitch grows roughly with the logarithm of frequency above
-about 1 kHz. The mel scale is a unit of pitch built on that
+about 1 kHz. The mel scale is a pitch scale built on that
 observation, and a mel filterbank is a set of triangular filters laid
 out evenly on it: narrow and dense at low frequencies, wide and sparse
 at high ones. Canary uses 128 of them between 0 and 8,000 Hz.
@@ -187,7 +190,7 @@ blocks.
 The Fast part is the front. Attention cost grows with the square of the
 sequence length, and 1,056 frames through 32 blocks would be slow on a
 CPU. So the 128-band mel is treated as a one-channel image and
-subsampled eight times in time before the first block: a 2D convolution
+shortened eightfold along time before the first block: a 2D convolution
 with stride 2, then twice a depthwise convolution with stride 2
 followed by a pointwise one, then a linear layer to 1,024. Each stride
 halves the frame count: 1,056 becomes 528, 264, 132. Each of the 132
@@ -214,12 +217,12 @@ come from the GGUF metadata, and a language the file does not list is
 refused before any graph exists. This is why the daemon's default
 instruction prompt would have been wrong for this model.
 
-The loop is the one every LLM runtime knows. The keys and values over
+The loop is the one every language model runtime runs. The keys and values over
 the encoder output do not change during a request, so each layer
 projects them once. The prompt goes through one prefill graph; then a
 fixed-shape step graph is reused per token. Decoding is greedy. On 8
 CPU threads a step costs 12.1 ms on Q8_0 and 16.4 ms on F16; the test
-clip's 33 tokens take 0.45 s and 0.61 s.
+clip's 33 tokens, prefill included, take 0.45 s and 0.61 s.
 
 ## 9. Text comes out
 
@@ -228,13 +231,14 @@ maps each id to its piece through the vocabulary in the GGUF, joins
 the pieces and turns the word marker into a space. Punctuation and
 capitalization come from the model, because the prompt asked for them.
 
-End to end on an 8-CPU host with the Q8_0 file, the 10.6 s test clip
+End to end, on an 8-thread host with the Q8_0 file, the 10.55 s test clip
 answers in 1.7 s through the worker and 3.6 s through the daemon on a
 cold load.
 
 ## 10. The worker around it
 
-The pipeline above is one request. The worker makes it safe to expose.
+The pipeline above handles one request. The worker makes it safe to
+expose to many.
 
 Limits apply before any audio is decoded: at most eight requests
 admitted at a time, and a 4 MiB cap on the file part, which bounds the
@@ -263,7 +267,7 @@ A speech model is forgiving: a port with a wrong padding choice still
 produces the right words on a clean clip and fails quietly on the next
 one, so reading the transcript tells us little. The acceptance test for
 every stage was a numerical comparison with activations dumped from
-the NeMo reference on one 10.6 s English clip, on both published
+the NeMo reference on one 10.55 s English clip, on both published
 weight files.
 
 | Stage | Compared | F16 | Q8_0 |
@@ -276,8 +280,8 @@ weight files.
 The front end has no weights, so its numbers are the same for both
 files. The weight format sets the floor for everything after it: on
 F16 the encoder's relative error sits around the half-precision
-epsilon of 4.9e-4, because the CPU matrix multiplication rounds
-activations to half precision inside; on Q8_0 it is an order of
+epsilon of 4.9e-4, because the CPU matrix multiplication converts
+activations to half precision before multiplying; on Q8_0 it is an order of
 magnitude larger, from quantization. Relative error is the number to
 watch; the exact token match says whether anyone would notice.
 
@@ -288,6 +292,8 @@ to frames, mel bands, encoder vectors and tokens, with a worker that
 admits, serialises, clips and cancels around it. Each stage was checked
 against the reference before the next one started.
 
+## Next
+
 Everything above runs on the CPU backend. Every op the graphs use is
 supported on Vulkan, but nothing has been run on a GPU yet. There is no
 streaming, no overlap between clips and no timestamps; beam search and
@@ -297,8 +303,8 @@ and its decoder.
 
 ## References
 
-The work is tracked in
-[llmman#713](https://github.com/llmmanorg/llmman/issues/713). The model
+The work is tracked in the project's
+[tracking issue](https://github.com/llmmanorg/llmman/issues/713). The model
 is described on its [model card](https://huggingface.co/nvidia/canary-1b-v2),
 and its reference implementation lives in [NeMo](https://github.com/NVIDIA/NeMo).
 The compute library is [ggml](https://github.com/ggml-org/ggml), shared
