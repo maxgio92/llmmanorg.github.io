@@ -63,6 +63,10 @@ end turns samples into mel bands, the encoder turns mel bands into audio
 vectors, the decoder turns those vectors into token ids, and a table
 lookup turns the ids into text.
 
+> The numbers that follow come from one 10.55 s test clip. Frames,
+> vectors and tokens grow with the length of the audio, up to a 30 s
+> clip.
+
 ## Front end: from samples to mel bands
 
 ![The front end: 1, samples, one pressure reading every 62.5 microseconds; 2, cut into overlapping 25 ms frames, a new one every 10 ms; 3, each frame becomes 257 evenly spaced frequency bins, merged into 128 mel bands, narrow at low pitch and wide at high pitch; 4, the frames side by side form the log-mel spectrogram, one column per frame and one row per band](front-end.svg)
@@ -178,8 +182,9 @@ The worker applies its limits before any audio is decoded:
   every thread, and the lock holds memory to one encoder graph and one
   decoder session.
 
-Audio longer than 30 s is split into equal clips and the texts
-joined: a 31 s file becomes two clips of 15.5 s.
+Audio longer than 30 s is split into equal clips, transcribed one by
+one and joined: Canary was trained on utterances up to 40 s, so 30 s
+keeps each clip within that. A 31 s file becomes two clips of 15.5 s.
 
 When the client disconnects, an abort flag is set, and three places
 read it:
