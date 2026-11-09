@@ -51,22 +51,28 @@ A C++ port of Canary exists, but it carries a patched copy of ggml:
 two copies of the library in the process tree, two versions to track.
 Every operation Canary needs is already in the ggml llmman loads, from
 2D convolutions and masked softmax to a sequence operator that doubles
-as a depthwise convolution over time. So the graphs are Rust against that library, like the
-LTX-2.3 and Qwen-Image pipelines.
+as a depthwise convolution over time. So the graphs are Rust against
+that library, like the LTX-2.3 and Qwen-Image pipelines.
 
 ![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel filterbank produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder subsamples it eight times to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
 
-## From sound to mel bands
+The request passes four stages, and each one feeds the next: the front
+end turns samples into mel bands, the encoder turns mel bands into audio
+vectors, the decoder turns those vectors into token ids, and a table
+lookup turns the ids into text.
+
+## Front end: from samples to mel bands
 
 A WAV holds *samples*: one pressure reading every 62.5 µs. The model
 works instead on *frames*, short slices over which a vowel or a
-consonant is roughly stable. The recipe comes from NeMo, the NVIDIA PyTorch toolkit Canary was
-trained and published with, and from the GGUF's front-end metadata:
+consonant is roughly stable. The recipe comes from NeMo, the NVIDIA
+PyTorch toolkit Canary was trained and published with, and from the
+GGUF's front-end metadata:
 
 1. **Pre-emphasis:** subtract 0.97 times the previous sample, a mild
    high-pass filter that lifts the quieter consonants.
-2. **Padding:** 256 zeros on each side, half a frame, so the first frame is centred
-   on the first sample.
+2. **Padding:** 256 zeros on each side, half a frame, so the first
+   frame is centred on the first sample.
 3. **Framing:** 400 samples (25 ms) every 160 (10 ms). Frames overlap,
    so a sound cut at one edge is whole in the next.
 4. **Hann window:** fade each frame's edges to zero, so the cut adds no
@@ -78,48 +84,63 @@ Those bins are evenly spaced in hertz, and hearing is not. We tell
 100 Hz from 200 Hz easily and 7,000 Hz from 7,100 Hz hardly at all. The
 mel scale spaces pitch the way hearing does, and a *mel band* is one
 triangular filter laid out on it: narrow and dense at low frequencies,
-wide and sparse at high ones. Canary uses 128. A floored logarithm and
-per-band normalisation over the clip finish the front end.
+wide and sparse at high ones. Canary uses 128, so each frame's 257 bins
+become 128 numbers. A floored logarithm and per-band normalisation over
+the clip finish the front end.
 
 The padding matters: the C++ port pads by reflection, and its notes
-record a visible mel difference from that choice alone.
-The stage is double precision Rust, since ggml has no short-time
-Fourier transform.
+record a visible mel difference from that choice alone. The stage is
+double precision Rust, since ggml has no short-time Fourier transform.
 
-## Encoder and decoder
+What the front end hands on is a *log-mel spectrogram*: for the test
+clip, 1,056 frames of 128 mel bands each, one frame every 10 ms.
 
-The encoder is a FastConformer. A *Conformer* block is a Transformer
-block with a 9-frame convolution between attention and feed-forward.
-Attention lets every frame see every other, which captures which word a
-syllable belongs to; the convolution captures the local pattern that
-tells one phoneme from the next.
+## Encoder: from mel bands to audio vectors
 
-Attention cost grows with the square of the sequence length, so the
-encoder first subsamples the mel spectrogram in time with three
-stride-2 convolutions:
+The encoder reads the spectrogram and writes one vector per 80 ms of
+audio, a summary of what was said around that moment. It is a
+FastConformer. A *Conformer* block is a Transformer block with a
+9-frame convolution between attention and feed-forward. Attention lets
+every frame see every other, which captures which word a syllable
+belongs to; the convolution captures the local pattern that tells one
+phoneme from the next.
+
+Attention cost grows with the square of the sequence length, so before
+the first block the encoder shortens the spectrogram in time with three
+stride-2 convolutions, then projects each step to 1,024 values:
 
 ```text
-1,056 frames -> 528 -> 264 -> 132 vectors of 1,024 values
+1,056 frames x 128 bands -> 528 -> 264 -> 132 vectors of 1,024 values
 ```
 
-One encoder pass peaks at 1.23 GB resident on Q8_0 and 2.10 GB on F16.
+The 132 vectors then pass through the 32 Conformer blocks, which keep
+their count and size. One encoder pass peaks at 1.23 GB resident on
+Q8_0 and 2.10 GB on F16.
 
-The decoder is an 8-layer Transformer over 16,384 SentencePiece
-tokens, with *cross-attention* in every layer: self-attention looks at
-the tokens written so far, cross-attention looks at the encoder's
-vectors.
+## Decoder: from audio vectors to text
 
-Canary's prompt is ten token ids from the GGUF metadata: start of
-transcript, source and target language (the same, for transcription),
-punctuation on, timestamps off, and a few more. A language the file
-does not list is refused before any graph exists. The daemon's default
-transcription prompt would be wrong here, so the worker skips it.
+The decoder writes the transcript one token at a time, reading the
+encoder's 132 vectors at every step. It is an 8-layer Transformer over
+16,384 SentencePiece tokens, with *cross-attention* in every layer:
+self-attention looks at the tokens written so far, cross-attention
+looks at the audio vectors.
 
-Decoding is greedy. On 8 CPU threads a step costs 12.1 ms on Q8_0 and
-16.4 ms on F16: 0.45 s and 0.61 s for the test clip, prefill included. The worker maps
-the ids to pieces through the GGUF vocabulary; punctuation and capitals
-come from the model, because the prompt asked for them. Through the
-daemon on a cold load, the clip answers in 3.6 s.
+It starts from a prompt of ten token ids from the GGUF metadata: start
+of transcript, source and target language (the same, for
+transcription), punctuation on, timestamps off, and a few more. A
+language the file does not list is refused before any graph exists. The
+daemon's default transcription prompt would be wrong here, so the
+worker skips it.
+
+Decoding is greedy: each step takes the most likely next token, until
+the model emits end of transcript. On 8 CPU threads a step costs
+12.1 ms on Q8_0 and 16.4 ms on F16. The test clip's 33 tokens take
+0.45 s and 0.61 s, prefill included.
+
+The last stage is a table lookup: the worker maps each token id to its
+piece of text through the GGUF vocabulary and joins the pieces.
+Punctuation and capitals come from the model, because the prompt asked
+for them. Through the daemon on a cold load, the clip answers in 3.6 s.
 
 ## Around the request
 
