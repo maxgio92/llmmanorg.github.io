@@ -10,15 +10,12 @@ tags = ["serve", "speech", "ggml"]
 
 A 10.55 s WAV goes in. One line of text comes out, 1.7 seconds later.
 
-Until now, llmman sent every transcription request to llama-server,
-the llama.cpp program it uses to run most models. llama-server
-understands one kind of speech model: an audio encoder attached to a
-language model. NVIDIA's Canary 1B v2 is built differently. One part,
-the encoder, reads the audio, and a separate part, the decoder, writes
-the text. llama.cpp has no code for that design, so llmman could not
-run Canary at all. Now `llmman serve` runs it with its own
-implementation, on the ggml library it already uses for image and
-video models.
+Until now, llmman sent transcription to llama-server, which runs only
+speech models built as an audio encoder in front of a language model.
+NVIDIA's Canary 1B v2 pairs an encoder that reads the audio with a
+decoder that writes the text, and llama.cpp has no code for it. llmman
+now runs Canary itself, on the ggml library it already uses for image
+and video models.
 
 <!-- more -->
 
@@ -50,16 +47,15 @@ When a GGUF header says Canary, the daemon spawns itself as a speech
 worker, on the host or in the CPU llama.cpp container image, through
 the media worker's spawn path.
 
-A model is two things: its weights, the learned numbers in the GGUF,
-and the code that runs them, from audio in to text out. NVIDIA's code
-is in NeMo, its Python toolkit for speech models. Running Canary
-anywhere else means a *port*: the same steps rewritten in another
-language. A C++ port exists, but it carries a patched copy of ggml:
-two copies of the library in the process tree, two versions to track.
-Every operation Canary needs is already in the ggml llmman loads, from
-2D convolutions and masked softmax to a sequence operator that doubles
-as a depthwise convolution over time. So the graphs are Rust against
-that library, like the LTX-2.3 and Qwen-Image pipelines.
+A model is its weights, the learned numbers in the GGUF, plus the code
+that runs them. NVIDIA's code lives in NeMo, its Python toolkit for
+speech, so running Canary anywhere else means a *port*: the same steps
+rewritten in another language.
+
+A C++ port exists, but it bundles its own patched ggml, which would put
+two copies of the library in one process. Every operation Canary needs
+is already in the ggml llmman loads, so llmman's port is Rust on that
+library, like its LTX-2.3 and Qwen-Image pipelines.
 
 ![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel filterbank produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder subsamples it eight times to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
 
