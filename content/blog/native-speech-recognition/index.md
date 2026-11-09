@@ -150,7 +150,7 @@ daemon's default transcription prompt would be wrong here, so the
 worker skips it.
 
 Decoding is greedy: each step takes the most likely next token, until
-the model emits end of transcript. On 8 CPU threads a step costs
+the model emits end of transcript or a length cap is reached. On 8 CPU threads a step costs
 12.1 ms on Q8_0 and 16.4 ms on F16. The test clip's 33 tokens take
 0.45 s and 0.61 s, prefill included.
 
@@ -189,11 +189,22 @@ the disconnect, in a debug build.
 
 ## Checked against NeMo
 
-A port with a wrong padding choice still produces the right words on
-a clean clip and fails quietly on the next one, so reading transcripts
-tells us little. Every stage was instead compared numerically with
-activations dumped from the NeMo reference on one English clip, for
-both published weight files:
+Reading transcripts is a weak test. A port with a wrong padding choice
+still writes the right words on a clean clip and fails quietly on the
+next one. So every stage was checked against NeMo instead, on one
+English clip and both published weight files.
+
+The method is to run the clip through NeMo and save every stage's
+*activations*: the numbers one stage hands to the next. They are the
+mel spectrogram, the 1,024-value vectors after the shrink and after
+several encoder blocks, and the decoder's score for every possible next
+token. Then the same clip goes through llmman, and the two sets of
+numbers are compared position by position, with two measures:
+
+- **Max absolute difference:** the largest gap between any pair.
+- **Relative rms error:** the typical gap (the root mean square of the
+  differences) divided by the typical size of NeMo's numbers. 1e-3
+  means the two agree to about 0.1 percent.
 
 | Stage | Compared | F16 | Q8_0 |
 |---|---|---|---|
@@ -202,10 +213,16 @@ both published weight files:
 | Decoder sublayers and logits | relative rms error | 7.7e-5 to 8.3e-4 | 1.1e-3 to 2.1e-2 |
 | Prompt ids, greedy ids, text | exact match | 10/10, 33/33, equal | 10/10, 33/33, equal |
 
-On F16 the encoder error sits near the half-precision epsilon of
-4.9e-4, because the CPU matrix multiplication converts activations to
-half precision before multiplying. On Q8_0 it is an order of magnitude larger, from
-quantization.
+The front end has no weights, so both files give the same numbers
+there. After it, the weight format sets how close we can get. The F16
+file uses *half precision*, a 16-bit number format that keeps about
+three significant digits: rounding a value to it can move the value by
+up to 4.9e-4 of its size, 1 part in 2,000. The CPU matrix
+multiplication rounds activations to half precision before
+multiplying, so an F16 encoder error near 4.9e-4 is the floor of the
+format, not a bug. Q8_0 stores weights in 8 bits, and its error is
+about ten times larger. Both files still produce the same 33 tokens
+and the same text as NeMo.
 
 ## Next
 
