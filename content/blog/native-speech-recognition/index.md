@@ -78,8 +78,8 @@ GGUF's front-end metadata:
    so a sound cut at one edge is whole in the next.
 4. **Hann window:** fade each frame's edges to zero, so the cut adds no
    energy of its own.
-5. **Power spectrum:** a 512-point Fourier transform gives 257 bins per
-   frame, each 31.25 Hz wide, from 0 to 8 kHz.
+5. **Power spectrum:** a 512-point Fourier transform gives 257 *bins* per
+   frame, one energy value per 31.25 Hz slice, from 0 to 8 kHz.
 
 Those bins are evenly spaced in hertz, and hearing is not. We tell
 100 Hz from 200 Hz easily and 7,000 Hz from 7,100 Hz hardly at all. The
