@@ -65,6 +65,8 @@ lookup turns the ids into text.
 
 ## Front end: from samples to mel bands
 
+![The front end: 1, samples, one pressure reading every 62.5 microseconds; 2, cut into overlapping 25 ms frames, a new one every 10 ms; 3, each frame becomes 257 evenly spaced frequency bins, merged into 128 mel bands, narrow at low pitch and wide at high pitch; 4, the frames side by side form the log-mel spectrogram, one column per frame and one row per band](front-end.svg)
+
 A WAV holds *samples*: one pressure reading every 62.5 µs. The model
 works on *frames*, short slices over which a vowel or a
 consonant is roughly stable. The recipe comes from NeMo and from the
@@ -97,6 +99,8 @@ What the front end hands on is a *log-mel spectrogram*: for the test
 clip, 1,056 frames of 128 mel bands each, one frame every 10 ms.
 
 ## Encoder: from mel bands to audio vectors
+
+![The encoder. Shrink: the 1,056 by 128 log-mel spectrogram is halved in time three times, to 528, 264 and 132 steps, then projected to 132 vectors of 1,024 values. Refine: 32 blocks each update every vector three ways: attention looks at all 132 vectors, convolution mixes each vector with 4 neighbours on each side, about 0.7 seconds of audio, and feed-forward reworks each vector on its own](encoder.svg)
 
 The encoder turns the spectrogram into a short sequence of vectors, one
 per 80 ms of audio, each describing what was said around that moment.
@@ -132,6 +136,8 @@ and *FastConformer* is NVIDIA's version with the 8x shrink in front.
 One encoder pass peaks at 1.23 GB resident on Q8_0 and 2.10 GB on F16.
 
 ## Decoder: from audio vectors to text
+
+![The decoder writes one token per step. The prompt of 10 ids and the words written so far sit in a row; for the next token, self-attention looks back at the tokens so far and cross-attention looks at the 132 audio vectors from the encoder. The decoder picks the most likely token out of 16,384, appends it and repeats until end of transcript](decoder.svg)
 
 The decoder is a Transformer like the one in a chat model. It writes
 the transcript one *token* at a time, where a token is a word or a
