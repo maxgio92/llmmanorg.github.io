@@ -201,8 +201,6 @@ the disconnect, in a debug build.
 
 ## Checked against NeMo
 
-![Typical gap between llmman and NeMo per stage, as relative rms error on a log scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of 1 part in 2,000: the F16 encoder sits on it, and Q8_0 is about ten times higher](nemo-check.svg)
-
 Reading transcripts is a weak test. A port with a wrong padding choice
 still writes the right words on a clean clip and fails quietly on the
 next one. So every stage was checked against NeMo, on one
@@ -220,6 +218,8 @@ numbers are compared position by position. Numbers like 1.29e-4 mean
 - **Relative rms error:** the typical gap (the root mean square of the
   differences) divided by the typical size of NeMo's numbers. 1e-3
   means the two agree to about 0.1 percent.
+
+![Typical gap between llmman and NeMo per stage, as relative rms error on a log scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of 1 part in 2,000: the F16 encoder sits on it, and Q8_0 is about ten times higher](nemo-check.svg)
 
 | Stage | Compared | F16 | Q8_0 |
 |---|---|---|---|
