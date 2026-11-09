@@ -36,7 +36,7 @@ Any OpenAI audio API client can call it. The first request pulls the
 GGUF from Hugging Face and loads it. The contract is narrow:
 
 - **Audio:** a 16-bit mono WAV at 16 kHz, what the model was trained
-  on. Anything else is refused, never resampled.
+  on. Anything else is refused.
 - **Endpoints:** transcription only. Chat, completions and embeddings
   are refused.
 - **CLI:** `llmman run` does not transcribe yet.
@@ -64,7 +64,7 @@ lookup turns the ids into text.
 ## Front end: from samples to mel bands
 
 A WAV holds *samples*: one pressure reading every 62.5 µs. The model
-works instead on *frames*, short slices over which a vowel or a
+works on *frames*, short slices over which a vowel or a
 consonant is roughly stable. The recipe comes from NeMo, the NVIDIA
 PyTorch toolkit Canary was trained and published with, and from the
 GGUF's front-end metadata:
@@ -191,7 +191,7 @@ the disconnect, in a debug build.
 
 Reading transcripts is a weak test. A port with a wrong padding choice
 still writes the right words on a clean clip and fails quietly on the
-next one. So every stage was checked against NeMo instead, on one
+next one. So every stage was checked against NeMo, on one
 English clip and both published weight files.
 
 The method is to run the clip through NeMo and save every stage's
@@ -213,16 +213,14 @@ numbers are compared position by position, with two measures:
 | Decoder sublayers and logits | relative rms error | 7.7e-5 to 8.3e-4 | 1.1e-3 to 2.1e-2 |
 | Prompt ids, greedy ids, text | exact match | 10/10, 33/33, equal | 10/10, 33/33, equal |
 
-The front end has no weights, so both files give the same numbers
-there. After it, the weight format sets how close we can get. The F16
-file uses *half precision*, a 16-bit number format that keeps about
-three significant digits: rounding a value to it can move the value by
-up to 4.9e-4 of its size, 1 part in 2,000. The CPU matrix
-multiplication rounds activations to half precision before
-multiplying, so an F16 encoder error near 4.9e-4 is the floor of the
-format, not a bug. Q8_0 stores weights in 8 bits, and its error is
-about ten times larger. Both files still produce the same 33 tokens
-and the same text as NeMo.
+The front end has no weights, so both files match there. After it, the
+weight format sets the floor. The F16 file uses *half precision*, a
+16-bit format with about three significant digits: each rounding can
+move a value by up to 1 part in 2,000 (4.9e-4). The CPU matrix
+multiplication rounds activations to half precision, so an F16 encoder
+error near 4.9e-4 is that floor. Q8_0 stores weights in 8 bits, and its
+error is about ten times larger. Both files still produce NeMo's 33
+tokens and text.
 
 ## Next
 
