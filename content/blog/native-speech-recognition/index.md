@@ -219,7 +219,7 @@ numbers are compared position by position. Numbers like 1.29e-4 mean
   differences) divided by the typical size of NeMo's numbers. 1e-3
   means the two agree to about 0.1 percent.
 
-![Typical gap between llmman and NeMo per stage, as relative rms error on a log scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of 1 part in 2,000: the F16 encoder sits on it, and Q8_0 is about ten times higher](nemo-check.svg)
+![Typical gap between llmman and NeMo per stage, as relative rms error on a log scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of about 0.05 percent: the F16 encoder sits on it, and Q8_0 is about ten times higher](nemo-check.svg)
 
 | Stage | Compared | F16 | Q8_0 |
 |---|---|---|---|
@@ -230,12 +230,11 @@ numbers are compared position by position. Numbers like 1.29e-4 mean
 
 The front end has no weights, so both files match there. After it, the
 weight format sets the floor. The F16 file uses *half precision*, a
-16-bit format with about three significant digits: each rounding can
-move a value by up to 1 part in 2,000 (4.9e-4). The CPU matrix
-multiplication rounds activations to half precision, so an F16 encoder
-error near 4.9e-4 is that floor. Q8_0 stores weights in 8 bits, and its
-error is about ten times larger. Both files still produce NeMo's 33
-tokens and text.
+16-bit format with about three significant digits, so each rounding can
+move a value by up to about 0.05%. The CPU matrix multiplication rounds
+activations to half precision, which puts the F16 encoder right at that
+floor. Q8_0 stores weights in 8 bits, and its error is about ten times
+larger. Both files still produce NeMo's 33 tokens and text.
 
 ## Next
 
