@@ -141,7 +141,7 @@ One encoder pass peaks at 1.23 GB resident on Q8_0 and 2.10 GB on F16.
 
 ## Decoder: from audio vectors to text
 
-![The decoder writes one token per step. The prompt of 10 ids and the words written so far sit in a row; for the next token, self-attention looks back at the tokens so far and cross-attention looks at the 132 audio vectors from the encoder. The decoder picks the most likely token out of 16,384, appends it and repeats until end of transcript](decoder.svg)
+![The decoder writes one token per step. The prompt of 10 ids and the words written so far sit in a row; for the next token, self-attention looks back at the tokens so far and cross-attention looks at the 132 audio vectors that cover the whole clip. The decoder picks the most likely token out of 16,384, appends it and repeats until end of transcript](decoder.svg)
 
 The decoder is a Transformer like the one in a chat model. It writes
 the transcript one *token* at a time, where a token is a word or a
