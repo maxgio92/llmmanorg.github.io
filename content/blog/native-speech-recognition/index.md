@@ -116,24 +116,27 @@ The encoder turns the spectrogram into a short sequence of vectors, one
 per 80 ms of audio, each describing what was said around that moment.
 It first shrinks the sequence and then refines it.
 
-**Shrink.** A *convolution* slides a small window along the frames and,
-at each position, mixes the frames under it into one new value with
-learned weights. With a stride of 2 the window moves two frames at a
-time, so the output is half as long. Three of them in a row cut the
-length by eight, and a final projection gives each step 1,024 values:
+The first phase, shrinking, uses three *convolutions* in a row. A
+convolution slides a small window along the frames and, at each
+position, mixes the frames under it into one new value with learned
+weights. Each of the three moves its window two frames at a time (a
+*stride* of 2), so each halves the length and together they cut it by
+eight. A final projection then gives each step 1,024 values:
 
 ```text
 1,056 frames x 128 bands -> 528 -> 264 -> 132 vectors of 1,024 values
 ```
 
-Attention, the next step, compares every vector with every other, so
-8x fewer vectors make it about 64x cheaper.
-
-**Refine.** Then 32 identical blocks run over the 132 vectors, keeping
-their count and size. Each block updates every vector three ways:
+The second phase, refining, runs 32 *blocks* over the 132 vectors, one
+after another. A block is a fixed sequence of steps with its own
+learned weights; all 32 have the same steps and differ only in their
+weights. Each block keeps the vectors' count and size, and updates every
+vector three ways:
 
 - **Attention:** the vector looks at all 132 and pulls in the ones that
-  matter to it, such as the rest of its word or sentence.
+  matter to it, such as the rest of its word or sentence. Its cost grows
+  with the square of the vector count, so the 8x shrink makes it about
+  64x cheaper.
 - **Convolution:** the vector is mixed with its 4 neighbours on each
   side, 9 in all, about 0.7 s of audio. This catches local sound
   patterns, such as where one phoneme ends and the next begins.
