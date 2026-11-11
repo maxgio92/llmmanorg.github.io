@@ -59,7 +59,7 @@ is already in the ggml llmman loads, so llmman's port is Rust on that
 library, like its LTX-2.3 and Qwen-Image pipelines. The front end is
 plain Rust, because ggml has no Fourier transform.
 
-![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel bands step produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder subsamples it eight times to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
+![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel bands step produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder shrinks it eightfold to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
 
 The pipeline runs four stages, in order:
 
@@ -127,7 +127,8 @@ third. Starting a new group every two frames gives half as many frames
 out as went in.
 
 The first convolution turns 1,056 frames into 528, the second 528 into
-264, and the third 264 into 132. A last step, a *projection*,
+264, and the third 264 into 132; each also halves the 128 bands, down
+to 16. A last step, a *projection*,
 multiplies each of the 132 results by another set of weights to give a
 vector of 1,024 values.
 
@@ -237,7 +238,7 @@ sets of numbers position by position. Numbers like 1.29e-4 mean
 | Mel front end | max absolute difference | 1.29e-4 | 1.29e-4 |
 | Encoder blocks and output | relative rms error per stage | 4e-4 to 1.2e-3 | 3.8e-3 to 3.8e-2 |
 | Decoder layers and token scores | relative rms error | 7.7e-5 to 8.3e-4 | 1.1e-3 to 2.1e-2 |
-| Prompt ids, greedy ids, text | exact match | 10/10, 33/33, equal | 10/10, 33/33, equal |
+| Prompt ids, output ids, text | exact match | 10/10, 33/33, equal | 10/10, 33/33, equal |
 
 The front end has no weights, so both files match there. The F16 file
 uses *half precision*, a 16-bit format with about three significant
@@ -256,7 +257,7 @@ still produce NeMo's 33 tokens and text.
   come out wrong.
 - No beam search or translation.
 
-Parakeet shares the front end and the encoder, so a second speech model
+Parakeet, NVIDIA's other speech model, shares the front end and the encoder, so a second speech model
 means a second architecture value and its decoder.
 
 ## References
