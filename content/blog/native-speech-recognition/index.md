@@ -49,8 +49,9 @@ was trained on utterances up to 40 s.
 
 ## Why a pipeline of its own
 
-When a GGUF's architecture field reads Canary, the daemon starts a
-separate speech process for it, the worker.
+Each GGUF file records which model architecture it contains. For a
+Canary file, `llmman serve` starts a separate process that runs only
+the speech model.
 
 A model is its weights, the learned numbers in the GGUF, plus the code
 that runs them. NVIDIA's code lives in NeMo, its Python toolkit for
@@ -196,11 +197,11 @@ The first real word becomes the 11th token, after the 10 above. Each
 step takes the most likely next token, until the model emits end of
 text or a length cap is reached.
 
-Last, the worker maps each token id to its piece of text through the
-GGUF vocabulary and joins the pieces. The prompt asked for
-punctuation and capitals, so they are already there. The 1.7 s
-covers the worker alone; through the daemon, loading the model
-first, the clip answers in 3.6 s.
+Last, the speech process maps each token id to its piece of text
+through the GGUF vocabulary and joins the pieces. The prompt asked for
+punctuation and capitals, so they are already there. The 1.7 s is the
+time inside the speech process alone. Sent through `llmman serve`,
+which also loads the model first, the clip takes 3.6 s.
 
 ## Checked against NeMo
 
