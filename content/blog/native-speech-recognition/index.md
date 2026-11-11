@@ -69,7 +69,8 @@ plain Rust, because ggml has no Fourier transform.
 
 The pipeline runs four stages, in order:
 
-1. The front end turns samples into mel bands.
+1. The front end turns samples into mel bands, which are numbers that
+   describe the sound's pitch content.
 2. The encoder turns mel bands into audio vectors.
 3. The decoder turns those vectors into token ids.
 4. A table lookup turns the ids into text.
@@ -129,7 +130,7 @@ The encoder turns the spectrogram into a short sequence of vectors, one
 per 80 ms of audio, each describing what was said around that moment.
 It first shrinks the sequence and then refines it.
 
-### Shrinking: from 1,056 frames to 132
+### Shrinking 1,056 frames to 132
 
 The encoder passes the frames through three *convolutions*, one after
 another, each with its own weights.
@@ -145,10 +146,10 @@ frames out as went in.
 The first convolution turns 1,056 frames into 528, the second 528 into
 264, and the third 264 into 132; each also halves the 128 bands, down
 to 16. A last step, called a *projection*,
-multiplies each of the 132 results by another set of weights to give a
+multiplies each of the 132 new frames by another set of weights to give a
 vector of 1,024 values.
 
-### Refining: 32 blocks over the 132 vectors
+### Refining the 132 vectors through 32 encoder blocks
 
 The encoder runs 32 *blocks* over the 132 vectors, one after another. A
 block is a fixed sequence of steps with its own learned weights. All 32
@@ -163,7 +164,7 @@ the vectors' count and size, and updates every vector three ways:
 - *Convolution:* the same kind of operation as in shrinking, over groups
   of 9 vectors (one vector and its 4 neighbours on each side, about 0.7
   s of audio) that start one vector apart, so all 132 stay. It catches
-  where one phoneme ends and the next begins.
+  where one speech sound ends and the next begins.
 - *Feed-forward:* a small network, which is a short chain of
   calculations that has its own weights, refines each vector on its own,
   using what attention and convolution gathered.
@@ -246,12 +247,12 @@ agree to about one part in a thousand.
 
 Q8_0 and F16 are the two published versions of Canary, with 8-bit and
 16-bit weights. The front end uses no weights, so it gives the same
-numbers with both. Every step from the encoder on multiplies by weights,
-which F16 stores in *half precision*, which is a 16-bit format with
-about three significant digits. That keeps its encoder near 0.05% from
-NeMo, which is the closest that the format allows, while Q8_0 keeps less
-detail and lands about ten times further away. Both still produce NeMo's
-33 tokens and text.
+numbers with both. With the F16 file, the CPU rounds the numbers inside
+every multiplication, from the encoder on, to *half precision*, which
+is a 16-bit format with about three significant digits. That keeps the
+encoder near 0.05% from NeMo, while Q8_0 keeps less detail and ends up
+about ten times further away. Both still produce NeMo's 33 tokens and
+text.
 
 ## Next
 
