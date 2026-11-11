@@ -151,10 +151,10 @@ vector three ways:
   its own weights, refines each vector on its own, using what attention
   and convolution gathered.
 
-Attention plus feed-forward is a *Transformer* block, the same block
-inside every LLM. Adding the convolution makes it a *Conformer* block,
-and *FastConformer* is NVIDIA's version with the 8x shrink in front.
-One encoder pass peaks at 1.23 GB of memory on Q8_0 and 2.10 GB on F16.
+> Attention plus feed-forward is a *Transformer* block, the same block
+> inside every LLM. Adding the convolution makes it a *Conformer*
+> block, and *FastConformer* is NVIDIA's version with the 8x shrink in
+> front.
 
 ## Decoder: from audio vectors to text
 
