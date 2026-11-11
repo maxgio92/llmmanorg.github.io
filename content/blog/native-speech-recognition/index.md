@@ -176,16 +176,17 @@ instructions for the task, and they sit at the start of the token
 sequence as if the decoder had written them, so self-attention sees
 them at every step. The first real word becomes token 11. In order:
 
-- `▁` and `<|startofcontext|>`: an empty context, with no earlier text
-  to continue.
-- `<|startoftranscript|>`: the transcript begins.
-- `<|emo:undefined|>`: no emotion tag.
-- The source and target language, the same for transcription, such as
-  `<|en|>` twice.
-- `<|pnc|>`: punctuation and capitals on.
-- `<|noitn|>`: numbers stay as spoken words, such as "twenty".
-- `<|notimestamp|>`: no timestamps.
-- `<|nodiarize|>`: no speaker labels.
+1. `▁`: the context slot, left empty.
+2. `<|startofcontext|>`: the context marker. With the slot empty, there
+   is no earlier text to continue.
+3. `<|startoftranscript|>`: the transcript begins.
+4. `<|emo:undefined|>`: no emotion tag.
+5. `<|en|>`: the source language, here English.
+6. `<|en|>`: the target language, the same for transcription.
+7. `<|pnc|>`: punctuation and capitals on.
+8. `<|noitn|>`: numbers stay as spoken words, such as "twenty".
+9. `<|notimestamp|>`: no timestamps.
+10. `<|nodiarize|>`: no speaker labels.
 
 A language the file does not list is refused before any computation
 starts.
