@@ -174,7 +174,8 @@ Before writing any word, the decoder reads a prompt of ten special
 tokens from the GGUF metadata. Canary learned them in training as
 instructions for the task, and they sit at the start of the token
 sequence as if the decoder had written them, so self-attention sees
-them at every step. The first real word becomes token 11. In order:
+them at every step, and the first real word becomes the eleventh token,
+right after these ten:
 
 1. `▁`: the context slot, left empty.
 2. `<|startofcontext|>`: the context marker. With the slot empty, there
