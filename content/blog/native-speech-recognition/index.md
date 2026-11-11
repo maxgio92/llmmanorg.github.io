@@ -174,8 +174,7 @@ Before writing any word, the decoder reads a prompt of ten special
 tokens from the GGUF metadata. Canary learned them in training as
 instructions for the task, and they sit at the start of the token
 sequence as if the decoder had written them, so self-attention sees
-them at every step, and the first real word becomes the eleventh token,
-right after these ten:
+them at every step:
 
 1. `▁`: the context slot, left empty.
 2. `<|startofcontext|>`: the context marker. With the slot empty, there
@@ -189,8 +188,9 @@ right after these ten:
 9. `<|notimestamp|>`: no timestamps.
 10. `<|nodiarize|>`: no speaker labels.
 
-Each step takes the most likely next token, until the model emits end
-of text or a length cap is reached.
+The first real word becomes the 11th token, after the 10 above. Each
+step takes the most likely next token, until the model emits end of
+text or a length cap is reached.
 
 Last, the worker maps each token id to its piece of text through the
 GGUF vocabulary and joins the pieces. The prompt asked for
