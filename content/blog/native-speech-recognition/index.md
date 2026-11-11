@@ -138,15 +138,18 @@ learned weights; all 32 have the same steps and differ only in their
 weights. Each block keeps the vectors' count and size, and updates every
 vector three ways:
 
-- *Attention:* the vector looks at all 132 and pulls in the ones that
-  matter to it, such as the rest of its word or sentence. Its cost grows
-  with the square of the vector count, so the 8x shrink makes it about
-  64x cheaper.
-- *Convolution:* the vector is mixed with its 4 neighbours on each
-  side, 9 in all, about 0.7 s of audio. This catches local sound
+- *Attention:* each vector looks at all 132 vectors and draws on the
+  ones that matter to it, such as the rest of its word or sentence.
+  Because every vector looks at every other one, the work grows with the
+  square of their number, so shrinking 1,056 frames to 132 vectors makes
+  this step about 64 times cheaper.
+- *Convolution:* each vector is combined with its 4 neighbours on each
+  side, 9 vectors in total or about 0.7 s of audio, using the same
+  multiply-and-add as in the shrinking phase. This catches local sound
   patterns, such as where one phoneme ends and the next begins.
-- *Feed-forward:* a small network reworks each vector on its own,
-  using what the other two gathered.
+- *Feed-forward:* a small network, a short chain of calculations with
+  its own weights, refines each vector on its own, using what attention
+  and convolution gathered.
 
 Attention plus feed-forward is a *Transformer* block, the same block
 inside every LLM. Adding the convolution makes it a *Conformer* block,
