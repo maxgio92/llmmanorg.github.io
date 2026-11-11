@@ -87,12 +87,13 @@ GGUF's front-end metadata:
    so a sound cut at one edge is whole in the next.
 4. **Hann window:** fade each frame's edges to zero, so the cut adds no
    energy of its own.
-5. **Power spectrum:** a 512-point Fourier transform gives 257 *bins* per
-   frame, one energy value per 31.25 Hz slice, from 0 to 8 kHz.
+5. **Power spectrum:** a 512-point Fourier transform splits 0 to 8 kHz
+   into 257 *bins*, which are slices 31.25 Hz wide, and measures the
+   frame's energy in each.
 
-Those bins are evenly spaced in hertz, but we tell 100 Hz from 200 Hz
-easily and 7,000 Hz from 7,100 Hz hardly at all. So the front end
-groups neighbouring bins into 128 *mel bands*, frequency slices narrow
+A man's and a woman's voice sit a few bins apart and sound clearly
+different, yet a gap that size in the hiss of an "s" goes unheard. So
+the front end groups neighbouring bins into 128 *mel bands*, frequency slices narrow
 at low pitches and wide at high ones, and blends each band's energy
 into one number. Each frame's 257 numbers become 128, and
 the detail lost is detail we barely hear. A logarithm, which tracks
