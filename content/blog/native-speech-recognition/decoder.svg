@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 396" width="900" height="396" role="img" aria-label="The decoder writes one token per step. The prompt of 10 ids and the words written so far sit in a row; for the next token, self-attention looks back at the tokens so far and cross-attention looks at the 132 audio vectors that cover the whole clip. The decoder picks the most likely token out of 16,384, appends it and repeats until end of transcript" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 396" width="900" height="396" role="img" aria-label="The decoder writes one token per step. The prompt of 10 ids and the words written so far sit in a row; for the next token, self-attention looks back at the tokens so far and cross-attention looks at the 132 audio vectors that cover the whole clip. The decoder picks the most likely token out of 16,384, appends it and repeats until end of text" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
 <defs><marker id="da" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#7aa2f7"/></marker></defs>
 <rect width="900" height="396" fill="#0b0e14"/>
 <text x="8" y="30" font-size="10" letter-spacing="1.6" fill="#8a94a8" text-anchor="start">132 AUDIO VECTORS: THE WHOLE CLIP, ONE PER 80 MS</text>
@@ -451,5 +451,5 @@
 <text x="720" y="275" font-size="10" fill="#d7dce6" text-anchor="middle">pick the most likely token</text>
 <text x="720" y="289" font-size="10" fill="#8a94a8" text-anchor="middle">out of 16,384</text>
 <path d="M720 302 V334 H549.0 V300" fill="none" stroke="#7aa2f7" stroke-width="1.2" opacity=".75" stroke-dasharray="3 3" marker-end="url(#da)"/>
-<text x="720" y="352" font-size="10" fill="#8a94a8" text-anchor="middle">append it and repeat, until end of transcript</text>
+<text x="720" y="352" font-size="10" fill="#8a94a8" text-anchor="middle">append it and repeat, until end of text</text>
 </svg>

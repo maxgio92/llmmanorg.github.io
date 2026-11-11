@@ -10,11 +10,10 @@ tags = ["serve", "speech", "ggml"]
 
 A 10.56 s WAV goes in, and 1.7 seconds later one line of text comes out.
 
-Until now, llmman sent transcription to llama-server, which runs only
-speech models built as an audio encoder in front of a language model.
-NVIDIA's Canary 1B v2 pairs an encoder that reads the audio with a
-decoder that writes the text, and llama.cpp has no code for it. llmman
-now runs Canary itself, on the ggml library it already uses for image
+Until now, llmman sent transcription to llama-server, which handles
+speech by feeding audio into an existing chat model. NVIDIA's Canary 1B
+v2 has its own decoder, trained only to write transcripts, and
+llama.cpp has no code for it. llmman now runs Canary itself, on the ggml library it already uses for image
 and video models.
 
 <!-- more -->
@@ -46,7 +45,8 @@ Anything else is refused, and so are chat, completions and embeddings.
 
 ## Why a pipeline of its own
 
-When a GGUF says Canary, the daemon starts a speech worker for it.
+When a GGUF's architecture field reads Canary, the daemon starts a
+separate speech process for it, the worker.
 
 A model is its weights, the learned numbers in the GGUF, plus the code
 that runs them. NVIDIA's code lives in NeMo, its Python toolkit for
@@ -96,8 +96,8 @@ groups neighbouring bins into 128 *mel bands*, frequency slices narrow
 at low pitches and wide at high ones, and blends each band's energy
 into one number. Each frame's 257 numbers become 128, and
 the detail lost is detail we barely hear. A logarithm, which tracks
-loudness the way we hear it, and a per-band rescaling over the clip
-finish the front end.
+loudness the way we hear it, and a rescaling of each band to an
+average of 0 and a spread of 1 over the clip finish the front end.
 
 llmman pads with zeros, as NeMo does; the C++ port mirrors the edge
 samples, and its notes record a visible mel difference from that choice
@@ -125,8 +125,8 @@ length by eight, and a final projection gives each step 1,024 values:
 1,056 frames x 128 bands -> 528 -> 264 -> 132 vectors of 1,024 values
 ```
 
-The next step compares every vector with every other, so its cost
-grows with the square of the length.
+Attention, the next step, compares every vector with every other, so
+8x fewer vectors make it about 64x cheaper.
 
 **Refine.** Then 32 identical blocks run over the 132 vectors, keeping
 their count and size. Each block updates every vector three ways:
@@ -146,7 +146,7 @@ One encoder pass peaks at 1.23 GB of memory on Q8_0 and 2.10 GB on F16.
 
 ## Decoder: from audio vectors to text
 
-![The decoder writes one token per step. The prompt of 10 ids and the words written so far sit in a row; for the next token, self-attention looks back at the tokens so far and cross-attention looks at the 132 audio vectors that cover the whole clip. The decoder picks the most likely token out of 16,384, appends it and repeats until end of transcript](decoder.svg)
+![The decoder writes one token per step. The prompt of 10 ids and the words written so far sit in a row; for the next token, self-attention looks back at the tokens so far and cross-attention looks at the 132 audio vectors that cover the whole clip. The decoder picks the most likely token out of 16,384, appends it and repeats until end of text](decoder.svg)
 
 The decoder is a Transformer like the one in a chat model. It writes
 the transcript one *token* at a time, where a token is a word or a
@@ -162,10 +162,10 @@ It starts from a prompt of ten token ids from the GGUF metadata: start
 of transcript, source and target language (the same, for
 transcription), punctuation on, timestamps off, and a few more. A
 language the file does not list is refused before any computation
-starts, and the daemon leaves out its usual transcription prompt.
+starts.
 
 Each step takes the most likely next token, until
-the model emits end of transcript or a length cap is reached. On 8 CPU
+the model emits end of text or a length cap is reached. On 8 CPU
 threads a step costs 12.1 ms on Q8_0 and 16.4 ms on F16. The test
 clip's 33 tokens take 0.45 s and 0.61 s, prompt included.
 
@@ -194,15 +194,15 @@ clips stay within that, and a 31 s file becomes two clips of 15.5 s.
 When the client disconnects, an abort flag is set, and three places
 read it:
 
-1. ggml's abort callback, which stops a running computation within about
-   40 ms.
+1. ggml's abort callback, which stops a running computation within
+   milliseconds.
 2. The decoder loop, before every token.
 3. The mel front end, every 32 frames (320 ms of audio).
 
 We added the third check after we measured a request abandoned during
-the front end holding the lock for the 0.93 s of mel still to compute.
-With the check, the next request takes the lock 46 ms to 339 ms after
-the disconnect, in a debug build.
+the front end holding the lock for about 1.2 s of mel still to
+compute. With the check, two debug-build runs measured a cancellation
+delay of at most 46 ms and 339 ms.
 
 ## Checked against NeMo
 
@@ -231,12 +231,12 @@ sets of numbers position by position. Numbers like 1.29e-4 mean
 | Decoder layers and token scores | relative rms error | 7.7e-5 to 8.3e-4 | 1.1e-3 to 2.1e-2 |
 | Prompt ids, greedy ids, text | exact match | 10/10, 33/33, equal | 10/10, 33/33, equal |
 
-The front end has no weights, so both files match there; after it,
-the weight format sets a floor on the error. The F16 file uses *half precision*, a
-16-bit format with about three significant digits, so each rounding can
-move a value by up to about 0.05%. The CPU matrix multiplication rounds
-activations to half precision too, which puts the F16 encoder right at
-that floor, while Q8_0's error is about ten times larger. Both files
+The front end has no weights, so both files match there. The F16 file
+uses *half precision*, a 16-bit format with about three significant
+digits, so each rounding can move a value by up to about 0.05%. The CPU
+matrix multiplication rounds activations to half precision too, which
+holds the F16 encoder near that 0.05% floor, while Q8_0's encoder error
+is about ten times larger. Both files
 still produce NeMo's 33 tokens and text.
 
 ## Next
@@ -249,7 +249,7 @@ still produce NeMo's 33 tokens and text.
 - No beam search or translation.
 
 Parakeet shares the front end and the encoder, so a second speech model
-means a second header value and its decoder.
+means a second architecture value and its decoder.
 
 ## References
 
