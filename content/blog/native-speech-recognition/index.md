@@ -109,9 +109,14 @@ different, yet a gap that size in the hiss of an "s" goes unheard. So
 the front end groups neighbouring bins into 128 *mel bands*, which are
 frequency slices narrow at low pitches and wide at high ones, and blends
 each band's energy into one number. Going from 257 numbers per frame to
-128 loses detail that we barely hear. A logarithm, which tracks loudness
-the way we hear it, and a rescaling of each band to an average of 0 and
-a spread of 1 over the clip finish the front end.
+128 loses detail that we barely hear.
+
+The front end ends with two adjustments. A logarithm turns each energy
+into a number that tracks loudness the way we hear it. Each band is
+then rescaled over the whole clip, so that its values centre on zero
+and vary by a similar amount in every band. A quiet recording and a
+loud one then look alike to the model, which was trained on input
+prepared the same way.
 
 The front end hands on a *log-mel spectrogram*, which for the test clip
 holds 1,056 frames of 128 mel bands each, one frame every 10 ms.
