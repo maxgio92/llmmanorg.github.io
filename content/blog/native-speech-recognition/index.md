@@ -13,9 +13,9 @@ A 10.56 s WAV goes in, and 1.7 seconds later one line of text comes out.
 Until now, llmman sent transcription to llama-server, which handles
 speech by feeding audio into an existing chat model. NVIDIA's Canary 1B
 v2 has its own decoder, which is the part that writes the text and is
-trained only on speech, and llama.cpp, the project behind llama-server,
-has no code for it. llmman now runs Canary itself, on the ggml library
-it already uses for image and video models.
+trained only on speech, and llama.cpp, which is the project behind
+llama-server, has no code for it. llmman now runs Canary itself, on the
+ggml library it already uses for image and video models.
 
 <!-- more -->
 
@@ -41,7 +41,8 @@ the GGUF file that holds the model from Hugging Face, in its Q8_0
 - `language`: `en` by default.
 - `response_format`: `json`, the only format.
 
-Anything else is refused, and so are chat, completions and embeddings.
+Other fields and values are refused, and so are requests to the chat,
+completions and embeddings endpoints.
 `llmman run` does not transcribe yet.
 
 Files are capped at 4 MiB, about 131 s of audio. Anything longer than
@@ -74,7 +75,8 @@ The pipeline runs four stages, in order:
    describe how much energy the sound has at each pitch.
 2. The encoder turns mel bands into audio vectors, which are lists of
    numbers that each describe a short stretch of sound.
-3. The decoder turns those vectors into token ids.
+3. The decoder turns those vectors into token ids, which are numbers
+   that each stand for a word or a piece of a word.
 4. A table lookup turns the ids into text.
 
 > The numbers that follow come from one 10.56 s test clip. Frames,
@@ -113,8 +115,8 @@ metadata:
 A *Fourier transform*, which is a standard calculation that finds the
 pitches a sound contains, splits each frame's range of 0 to 8 kHz into
 257 *bins*, which are slices 31.25 Hz wide, and measures the frame's
-energy in each one. This step runs in plain Rust, because ggml has no
-Fourier transform.
+energy in each one. The whole front end runs in plain Rust, because
+ggml has no Fourier transform.
 
 To give you an example, think of a man's voice and a woman's voice.
 They sit only a few bins apart, and you can tell them apart at once,
@@ -220,8 +222,8 @@ them at every step:
 10. `<|nodiarize|>`: no speaker labels.
 
 The first real word becomes the 11th token, after the 10 above. Each
-step takes the most likely next token, until the model emits end of
-text or a length cap is reached.
+step takes the most likely next token, until the model emits its
+end-of-text token or a length cap is reached.
 
 Last, the speech process maps each token id to its piece of text
 through the GGUF vocabulary and joins the pieces. The prompt asked for
@@ -263,8 +265,9 @@ Q8_0 and F16 are the two published versions of Canary, with 8-bit and
 numbers with both. With the F16 file, the CPU rounds the numbers inside
 every multiplication by a weight, from the encoder on, to *half
 precision*, which is a 16-bit format with about three significant
-digits. That puts the F16 encoder near the 0.05% floor, while Q8_0 keeps
-less detail and ends up about ten times further away. Both still produce
+digits. Half precision alone causes a gap of about 0.05%, and the F16
+encoder sits near it, while Q8_0 keeps less detail and ends up about
+ten times further away. Both still produce
 NeMo's 33 tokens and text.
 
 ## Next
@@ -276,7 +279,7 @@ to:
   ggml library already has every operation Canary needs there, and we
   still have to test it.
 - **Transcribe live audio:** transcribe while someone is still
-  speaking. Today llmman waits for the whole file.
+  speaking. For now, llmman waits for the whole file.
 - **Add timestamps:** return the time at which each word was spoken,
   next to the text.
 - **Handle long recordings better:** overlap the 30 s clips, so a word
@@ -285,7 +288,7 @@ to:
   called beam search, for a slightly better transcript. Today each step
   keeps only the most likely token.
 - **Translate:** let llmman ask Canary to translate speech into another
-  language. Today it only asks it to transcribe.
+  language. So far it only asks it to transcribe.
 - **Support Parakeet:** NVIDIA's other speech model shares Canary's
   front end and encoder, so llmman mostly needs to add its decoder.
 
