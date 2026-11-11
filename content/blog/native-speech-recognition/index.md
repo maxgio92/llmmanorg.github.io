@@ -234,10 +234,10 @@ agree to about one part in a thousand.
 
 Q8_0 and F16 are the two published versions of Canary, with 8-bit and
 16-bit weights. The front end uses no weights, so it gives the same
-numbers with both. From the encoder on, every step multiplies by
-weights. F16 stores each number in *half precision*, a 16-bit format
-with about three significant digits, and that keeps its encoder near
-0.05% from NeMo, the closest the format allows. Q8_0 keeps less detail
+numbers with both. Every step from the encoder on multiplies by
+weights, which F16 stores in *half precision*, a 16-bit format with
+about three significant digits. That keeps its encoder near 0.05% from
+NeMo, the closest the format allows. Q8_0 keeps less detail
 and lands about ten times further away. Both still produce NeMo's 33
 tokens and text.
 
