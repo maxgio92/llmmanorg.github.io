@@ -209,33 +209,32 @@ clean clip and fail quietly on the next one, so we compared every stage
 with NeMo, on one English clip and both weight files.
 
 We ran the clip through NeMo and saved every stage's *activations*,
-the numbers one stage hands to the next: the mel spectrogram, the 1,024-value vectors after the shrink and after
-several encoder blocks, and the decoder's score for every possible next
-token. Then we ran the same clip through llmman and compared the two
-sets of numbers position by position. Numbers like 1.29e-4 mean
-1.29 × 10⁻⁴, or 0.000129. The comparison uses two measures:
+the numbers one stage hands to the next: the mel spectrogram, the
+1,024-value vectors after the shrink and after several encoder blocks,
+and the decoder's score for every possible next token. Then we ran the
+same clip through llmman and compared the two sets of numbers position
+by position.
 
-- **Max absolute difference:** the largest gap between any pair.
-- **Relative rms error:** the typical gap (the root mean square of the
-  differences) divided by the typical size of NeMo's numbers. 1e-3
-  means the two agree to about 0.1 percent.
+For each stage, the gap between llmman's numbers and NeMo's is a
+percentage of a typical NeMo number: 0.1% means the two agree to about
+one part in a thousand.
 
-![Typical gap between llmman and NeMo per stage, as relative rms error on a log scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of about 0.05 percent: the F16 encoder sits on it, and Q8_0 is about ten times higher](nemo-check.svg)
+![Gap between llmman and NeMo per stage, as a percentage of a typical value, on a scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of about 0.05 percent: the F16 encoder sits on it, and Q8_0 is about ten times higher](nemo-check.svg)
 
-| Stage | Compared | F16 | Q8_0 |
-|---|---|---|---|
-| Mel front end | max absolute difference | 1.29e-4 | 1.29e-4 |
-| Encoder blocks and output | relative rms error per stage | 4e-4 to 1.2e-3 | 3.8e-3 to 3.8e-2 |
-| Decoder layers and token scores | relative rms error | 7.7e-5 to 8.3e-4 | 1.1e-3 to 2.1e-2 |
-| Prompt ids, output ids, text | exact match | 10/10, 33/33, equal | 10/10, 33/33, equal |
+| Stage | F16 | Q8_0 |
+|---|---|---|
+| Mel spectrogram | at most 0.013% | at most 0.013% |
+| Encoder | 0.04% to 0.12% | 0.38% to 3.8% |
+| Decoder | 0.008% to 0.08% | 0.11% to 2.1% |
+| Prompt, output tokens and text | identical | identical |
 
 The front end has no weights, so both files match there. The F16 file
 uses *half precision*, a 16-bit format with about three significant
 digits, so each rounding can move a value by up to about 0.05%. The CPU
 matrix multiplication rounds activations to half precision too, which
 holds the F16 encoder near that 0.05% floor, while Q8_0's encoder error
-is about ten times larger. Both files
-still produce NeMo's 33 tokens and text.
+is about ten times larger. Both files still produce NeMo's 33 tokens
+and text.
 
 ## Next
 

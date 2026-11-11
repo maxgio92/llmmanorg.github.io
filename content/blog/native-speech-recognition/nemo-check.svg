@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 250" width="900" height="250" role="img" aria-label="Typical gap between llmman and NeMo per stage, as relative rms error on a log scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of about 0.05 percent: the F16 encoder sits on it, and Q8_0 is about ten times higher" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 250" width="900" height="250" role="img" aria-label="Gap between llmman and NeMo per stage, as a percentage of a typical value, on a scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of about 0.05 percent: the F16 encoder sits on it, and Q8_0 is about ten times higher" font-family="system-ui,-apple-system,'Segoe UI',sans-serif">
 <defs><marker id="ca" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#7aa2f7"/></marker></defs>
 <rect width="900" height="250" fill="#0b0e14"/>
-<text x="8" y="22" font-size="10" letter-spacing="1.6" fill="#8a94a8" text-anchor="start">TYPICAL GAP PER STAGE (RELATIVE RMS ERROR), LOG SCALE</text>
+<text x="8" y="22" font-size="10" letter-spacing="1.6" fill="#8a94a8" text-anchor="start">GAP BETWEEN LLMMAN AND NEMO, AS A PERCENTAGE OF A TYPICAL VALUE</text>
 <rect x="8" y="32" width="884" height="214" rx="8" fill="#151a25" stroke="#232a3a"/>
 <path d="M170 196 H860" stroke="#232a3a" stroke-width="1"/>
 <path d="M170.0 54 V200" stroke="#232a3a" stroke-width="1"/>
