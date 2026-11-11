@@ -97,10 +97,10 @@ GGUF's front-end metadata:
 
 A man's and a woman's voice sit a few bins apart and sound clearly
 different, yet a gap that size in the hiss of an "s" goes unheard. So
-the front end groups neighbouring bins into 128 *mel bands*, frequency slices narrow
-at low pitches and wide at high ones, and blends each band's energy
-into one number. Each frame's 257 numbers become 128, and
-the detail lost is detail we barely hear. A logarithm, which tracks
+the front end groups neighbouring bins into 128 *mel bands*, frequency
+slices narrow at low pitches and wide at high ones, and blends each
+band's energy into one number. Going from 257 numbers per frame to 128
+loses detail that we barely hear. A logarithm, which tracks
 loudness the way we hear it, and a rescaling of each band to an
 average of 0 and a spread of 1 over the clip finish the front end.
 
