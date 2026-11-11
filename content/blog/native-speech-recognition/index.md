@@ -55,7 +55,8 @@ speech, so running Canary anywhere else means a port.
 A C++ port exists, but it bundles its own patched ggml, which would put
 two copies of the library in one process. Every operation Canary needs
 is already in the ggml llmman loads, so llmman's port is Rust on that
-library, like its LTX-2.3 and Qwen-Image pipelines.
+library, like its LTX-2.3 and Qwen-Image pipelines. The front end is
+plain Rust, because ggml has no Fourier transform.
 
 ![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel bands step produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder subsamples it eight times to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
 
@@ -82,7 +83,9 @@ GGUF's front-end metadata:
 1. **Pre-emphasis:** subtract 0.97 times the previous sample, which
    lifts the quieter consonants.
 2. **Padding:** 256 zeros on each side, so the first frame is centred
-   on the first sample.
+   on the first sample. NeMo pads with zeros too; the C++ port mirrors
+   the edge samples, and its notes record a visible change in the mel
+   bands from that choice alone.
 3. **Framing:** 400 samples (25 ms) every 160 (10 ms). Frames overlap,
    so a sound cut at one edge is whole in the next.
 4. **Hann window:** fade each frame's edges to zero, so the cut adds no
@@ -99,11 +102,6 @@ into one number. Each frame's 257 numbers become 128, and
 the detail lost is detail we barely hear. A logarithm, which tracks
 loudness the way we hear it, and a rescaling of each band to an
 average of 0 and a spread of 1 over the clip finish the front end.
-
-llmman pads with zeros, as NeMo does; the C++ port mirrors the edge
-samples, and its notes record a visible mel difference from that choice
-alone. The stage runs in Rust, because ggml has no Fourier
-transform.
 
 What the front end hands on is a *log-mel spectrogram*: for the test
 clip, 1,056 frames of 128 mel bands each, one frame every 10 ms.
