@@ -88,7 +88,7 @@ GGUF's front-end metadata:
 1. **Pre-emphasis:** subtract 0.97 times the previous sample, which
    lifts the quieter consonants.
 2. **Padding:** 256 zeros on each side, so the first frame is centred
-   on the first sample. NeMo pads with zeros too; transcribe.cpp mirrors
+   on the first sample. NeMo pads with zeros too, and transcribe.cpp mirrors
    the edge samples, and its notes record a visible change in the mel
    bands from that choice alone.
 3. **Framing:** 400 samples (25 ms) every 160 (10 ms). Frames overlap,
@@ -123,9 +123,9 @@ The first phase, **shrinking**, passes the frames through three
 *convolutions*, one after another, each with its own weights.
 
 A convolution reads a group of three neighbouring frames and combines
-them into one new frame: it multiplies each number in the group by one
+them into one new frame. To do that, it multiplies each number in the group by one
 of the model's weights and adds up the results. Each group starts two
-frames after the previous one, so the groups overlap: frames 1 to 3
+frames after the previous one, so the groups overlap. Frames 1 to 3
 make the first new frame, frames 3 to 5 the second, frames 5 to 7 the
 third. Starting a new group every two frames gives half as many frames
 out as went in.
@@ -138,7 +138,7 @@ vector of 1,024 values.
 
 The second phase, **refining**, runs 32 *blocks* over the 132 vectors, one
 after another. A block is a fixed sequence of steps with its own
-learned weights; all 32 have the same steps and differ only in their
+learned weights. All 32 have the same steps and differ only in their
 weights. Each block keeps the vectors' count and size, and updates every
 vector three ways:
 
@@ -211,15 +211,16 @@ another recording. So we compared the output of every stage with
 NeMo's, on one English clip and with both weight files.
 
 We ran the clip through NeMo and saved every stage's *activations*,
-the numbers one stage hands to the next: the mel spectrogram, the
+the numbers one stage hands to the next. They are the mel spectrogram,
+the
 1,024-value vectors after the shrink and after several encoder blocks,
 and the decoder's score for every possible next token. Then we ran the
 same clip through llmman and compared the two sets of numbers position
 by position.
 
 For each stage, the gap between llmman's numbers and NeMo's is a
-percentage of a typical NeMo number: 0.1% means the two agree to about
-one part in a thousand.
+percentage of a typical NeMo number. For instance, 0.1% means the two
+agree to about one part in a thousand.
 
 ![Gap between llmman and NeMo per stage, as a percentage of a typical value, on a scale from 0.001 to 10 percent. Encoder F16 0.04 to 0.12 percent, Encoder Q8_0 0.38 to 3.8 percent, Decoder F16 0.008 to 0.08 percent, Decoder Q8_0 0.11 to 2.1 percent. A dashed line marks the half-precision floor of about 0.05 percent: the F16 encoder sits on it, and Q8_0 is about ten times higher](nemo-check.svg)
 
