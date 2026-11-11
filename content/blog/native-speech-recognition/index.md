@@ -227,7 +227,7 @@ punctuation and capitals, so they are already there. The 1.7 s is the
 time inside the speech process alone. Sent through `llmman serve`,
 which also loads the model first, the clip takes 3.6 s.
 
-## Checked against NeMo
+## Validating against NeMo
 
 A correct transcript for one clip proves little about the port. A small
 mistake in one stage, such as padding the samples differently from
