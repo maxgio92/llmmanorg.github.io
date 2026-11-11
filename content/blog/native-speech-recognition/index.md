@@ -187,10 +187,8 @@ this order:
 A language the file does not list is refused before any computation
 starts.
 
-Each step takes the most likely next token, until
-the model emits end of text or a length cap is reached. On 8 CPU
-threads a step costs 12.1 ms on Q8_0 and 16.4 ms on F16. The test
-clip's 33 tokens take 0.45 s and 0.61 s, prompt included.
+Each step takes the most likely next token, until the model emits end
+of text or a length cap is reached.
 
 Last, the worker maps each token id to its piece of text through the
 GGUF vocabulary and joins the pieces. The prompt asked for
