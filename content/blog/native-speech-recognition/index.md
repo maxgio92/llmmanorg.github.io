@@ -243,15 +243,25 @@ tokens and text.
 
 ## Next
 
-- Only the CPU backend has run. Every operation llmman uses is
-  supported on Vulkan, but nothing has run on a GPU.
-- No streaming and no timestamps.
-- No overlap between long-audio clips, so a word cut at a boundary may
-  come out wrong.
-- No beam search or translation.
+This first version transcribes audio files on the CPU. Next, we plan
+to:
 
-Parakeet, NVIDIA's other speech model, shares the front end and the encoder, so a second speech model
-means a second architecture value and its decoder.
+- **Run on GPUs:** make llmman transcribe on a GPU through Vulkan. The
+  ggml library already has every operation Canary needs there, and we
+  still have to test it.
+- **Transcribe live audio:** transcribe while someone is still
+  speaking. Today llmman waits for the whole file.
+- **Add timestamps:** return the time at which each word was spoken,
+  next to the text.
+- **Handle long recordings better:** overlap the 30 s clips, so a word
+  that falls on a cut comes out right.
+- **Improve decoding:** try several candidates at each step, a method
+  called beam search, for a slightly better transcript. Today each step
+  keeps only the most likely token.
+- **Translate:** let llmman ask Canary to translate speech into another
+  language. Today it only asks it to transcribe.
+- **Support Parakeet:** NVIDIA's other speech model shares Canary's
+  front end and encoder, so llmman mostly needs to add its decoder.
 
 ## References
 
