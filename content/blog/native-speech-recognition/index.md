@@ -43,6 +43,10 @@ A request takes four fields:
 Anything else is refused, and so are chat, completions and embeddings.
 `llmman run` does not transcribe yet.
 
+Files are capped at 4 MiB, about 131 s of audio. Anything longer than
+30 s is split into equal clips and the texts are joined, since Canary
+was trained on utterances up to 40 s.
+
 ## Why a pipeline of its own
 
 When a GGUF's architecture field reads Canary, the daemon starts a
@@ -197,35 +201,6 @@ GGUF vocabulary and joins the pieces. The prompt asked for
 punctuation and capitals, so they are already there. The 1.7 s
 covers the worker alone; through the daemon, loading the model
 first, the clip answers in 3.6 s.
-
-## Around the request
-
-The worker applies its limits before any audio is decoded:
-
-- At most eight requests are admitted at a time.
-- The file is capped at 4 MiB, about 131 s of audio, and the WAV
-  parser bounds every chunk by the bytes present, so a hostile header
-  cannot make it allocate.
-- One request computes at a time, behind a lock. The computation
-  already uses every thread, and the lock holds memory to one encoder
-  pass and one decoder session.
-
-Audio longer than 30 s is split into equal clips, transcribed one by
-one and joined. Canary was trained on utterances up to 40 s, so 30 s
-clips stay within that, and a 31 s file becomes two clips of 15.5 s.
-
-When the client disconnects, an abort flag is set, and three places
-read it:
-
-1. ggml's abort callback, which stops a running computation within
-   milliseconds.
-2. The decoder loop, before every token.
-3. The mel front end, every 32 frames (320 ms of audio).
-
-We added the third check after we measured a request abandoned during
-the front end holding the lock for about 1.2 s of mel still to
-compute, in a debug build. With the check, two debug-build runs
-measured cancellation delays of 46 ms and 339 ms.
 
 ## Checked against NeMo
 
