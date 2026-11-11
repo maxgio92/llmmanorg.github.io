@@ -129,8 +129,10 @@ The encoder turns the spectrogram into a short sequence of vectors, one
 per 80 ms of audio, each describing what was said around that moment.
 It first shrinks the sequence and then refines it.
 
-The first phase, called **shrinking**, passes the frames through three
-*convolutions*, one after another, each with its own weights.
+### Shrinking: from 1,056 frames to 132
+
+The encoder passes the frames through three *convolutions*, one after
+another, each with its own weights.
 
 A convolution reads a group of three neighbouring frames and combines
 them into one new frame. To do that, it multiplies each number in the
@@ -146,11 +148,12 @@ to 16. A last step, called a *projection*,
 multiplies each of the 132 results by another set of weights to give a
 vector of 1,024 values.
 
-The second phase, called **refining**, runs 32 *blocks* over the 132
-vectors, one after another. A block is a fixed sequence of steps with
-its own learned weights. All 32 have the same steps and differ only in
-their weights. Each block keeps the vectors' count and size, and updates
-every vector three ways:
+### Refining: 32 blocks over the 132 vectors
+
+The encoder runs 32 *blocks* over the 132 vectors, one after another. A
+block is a fixed sequence of steps with its own learned weights. All 32
+have the same steps and differ only in their weights. Each block keeps
+the vectors' count and size, and updates every vector three ways:
 
 - *Attention:* each vector looks at all 132 vectors and draws on the
   ones that matter to it, such as the rest of its word or sentence.
