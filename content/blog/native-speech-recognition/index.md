@@ -88,19 +88,21 @@ slices of samples over which a vowel or a consonant stays roughly
 stable. The recipe comes from NeMo and from the
 GGUF's front-end metadata:
 
-1. **Pre-emphasis:** subtract 0.97 times the previous sample, which
-   lifts the quieter consonants.
-2. **Padding:** 256 zeros on each side, so the first frame is centred
-   on the first sample. NeMo pads with zeros too, and transcribe.cpp mirrors
-   the edge samples, and its notes record a visible change in the mel
-   bands from that choice alone.
-3. **Framing:** 400 samples (25 ms) every 160 (10 ms). Frames overlap,
-   so a sound cut at one edge is whole in the next.
-4. **Hann window:** fade each frame's edges to zero, so the cut adds no
-   energy of its own.
+1. **Pre-emphasis:** each sample has 0.97 times the previous sample
+   subtracted from it, which lifts the quieter consonants.
+2. **Padding:** 256 zeros are added on each side to centre the first
+   frame on the first sample, as NeMo does, while the transcribe.cpp
+   port mirrors the edge samples and its notes record that this choice
+   alone visibly changes the mel bands.
+3. **Framing:** the samples are cut into frames of 400 samples (25 ms),
+   with a new frame starting every 160 samples (10 ms), so the frames
+   overlap and a sound cut at the edge of one frame stays whole in the
+   next.
+4. **Hann window:** each frame's edges are faded to zero, because a
+   sharp cut would add energy that the sound never had.
 5. **Power spectrum:** a 512-point Fourier transform splits 0 to 8 kHz
    into 257 *bins*, which are slices 31.25 Hz wide, and measures the
-   frame's energy in each.
+   frame's energy in each one.
 
 A man's and a woman's voice sit a few bins apart and sound clearly
 different, yet a gap that size in the hiss of an "s" goes unheard. So
