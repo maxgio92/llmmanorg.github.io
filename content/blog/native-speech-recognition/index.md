@@ -201,8 +201,8 @@ read it:
 
 We added the third check after we measured a request abandoned during
 the front end holding the lock for about 1.2 s of mel still to
-compute. With the check, two debug-build runs measured a cancellation
-delay of at most 46 ms and 339 ms.
+compute, in a debug build. With the check, two debug-build runs
+measured cancellation delays of 46 ms and 339 ms.
 
 ## Checked against NeMo
 
