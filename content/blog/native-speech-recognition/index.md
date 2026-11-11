@@ -13,7 +13,8 @@ A 10.56 s WAV goes in, and 1.7 seconds later one line of text comes out.
 Until now, llmman sent transcription to llama-server, which handles
 speech by feeding audio into an existing chat model. NVIDIA's Canary 1B
 v2 has its own decoder, which is the part that writes the text and is
-trained only to write transcripts, and llama.cpp has no code for it. llmman now runs Canary itself, on the ggml library
+trained only on speech, and llama.cpp, the project behind llama-server,
+has no code for it. llmman now runs Canary itself, on the ggml library
 it already uses for image and video models.
 
 <!-- more -->
@@ -60,10 +61,10 @@ speech, so running Canary anywhere else needs a port of that code.
 
 A C++ port, [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp),
 exists, but it bundles its own patched ggml, which would put two copies
-of the library in one process. Every operation Canary needs
-is already in the ggml llmman loads, so llmman's port is Rust on that
-library, like its LTX-2.3 and Qwen-Image pipelines. The front end is
-plain Rust, because ggml has no Fourier transform.
+of the library in one process, where they could clash. Every operation
+Canary needs is already in the ggml llmman loads, so llmman's port is
+Rust on that library, like its video (LTX-2.3) and image (Qwen-Image)
+pipelines.
 
 ![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel bands step produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder shrinks it eightfold to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
 
@@ -112,7 +113,8 @@ metadata:
 A *Fourier transform*, which is a standard calculation that finds the
 pitches a sound contains, splits each frame's range of 0 to 8 kHz into
 257 *bins*, which are slices 31.25 Hz wide, and measures the frame's
-energy in each one.
+energy in each one. This step runs in plain Rust, because ggml has no
+Fourier transform.
 
 To give you an example, think of a man's voice and a woman's voice.
 They sit only a few bins apart, and you can tell them apart at once,
@@ -156,9 +158,9 @@ frames out as went in.
 
 The first convolution turns 1,056 frames into 528, the second 528 into
 264, and the third 264 into 132. Each also halves the 128 bands, down
-to 16. A last step, called a *projection*,
-multiplies each of the 132 new frames by another set of weights to give a
-vector of 1,024 values.
+to 16, each now holding many learned values. A last step, called a
+*projection*, multiplies each of the 132 new frames by another set of
+weights to give a vector of 1,024 values.
 
 ### Refining the 132 vectors through 32 encoder blocks
 
@@ -261,9 +263,9 @@ Q8_0 and F16 are the two published versions of Canary, with 8-bit and
 numbers with both. With the F16 file, the CPU rounds the numbers inside
 every multiplication by a weight, from the encoder on, to *half
 precision*, which is a 16-bit format with about three significant
-digits. That puts the F16 encoder about 0.05% from NeMo, while Q8_0 keeps less detail and ends up
-about ten times further away. Both still produce NeMo's 33 tokens and
-text.
+digits. That puts the F16 encoder near the 0.05% floor, while Q8_0 keeps
+less detail and ends up about ten times further away. Both still produce
+NeMo's 33 tokens and text.
 
 ## Next
 
