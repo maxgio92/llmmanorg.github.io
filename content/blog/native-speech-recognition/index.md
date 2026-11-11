@@ -170,10 +170,21 @@ two kinds of attention:
 - *Cross-attention* looks at the 132 audio vectors the encoder produced,
   so the text follows the audio.
 
-It starts from a prompt of ten token ids from the GGUF metadata: start
-of transcript, source and target language (the same, for
-transcription), punctuation on, timestamps off, and a few more. A
-language the file does not list is refused before any computation
+It starts from a prompt of ten token ids from the GGUF metadata, in
+this order:
+
+- `▁` and `<|startofcontext|>`: an empty context, with no earlier text
+  to continue.
+- `<|startoftranscript|>`: the transcript begins.
+- `<|emo:undefined|>`: no emotion tag.
+- The source and target language, the same for transcription, such as
+  `<|en|>` twice.
+- `<|pnc|>`: punctuation and capitals on.
+- `<|noitn|>`: numbers stay as spoken words, such as "twenty".
+- `<|notimestamp|>`: no timestamps.
+- `<|nodiarize|>`: no speaker labels.
+
+A language the file does not list is refused before any computation
 starts.
 
 Each step takes the most likely next token, until
