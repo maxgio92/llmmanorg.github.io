@@ -12,9 +12,9 @@ A 10.56 s WAV goes in, and 1.7 seconds later one line of text comes out.
 
 Until now, llmman sent transcription to llama-server, which handles
 speech by feeding audio into an existing chat model. NVIDIA's Canary 1B
-v2 has its own decoder, trained only to write transcripts, and
-llama.cpp has no code for it. llmman now runs Canary itself, on the ggml library it already uses for image
-and video models.
+v2 has its own decoder, trained only to write transcripts, and llama.cpp
+has no code for it. llmman now runs Canary itself, on the ggml library
+it already uses for image and video models.
 
 <!-- more -->
 
@@ -32,8 +32,8 @@ curl -s http://127.0.0.1:17434/v1/audio/transcriptions \
 ```
 
 `llmman serve` speaks the OpenAI audio API, and the first request pulls
-the model file, a GGUF, from Hugging Face in its Q8_0 (8-bit) or F16 (16-bit) version.
-A request takes four fields:
+the GGUF file that holds the model from Hugging Face, in its Q8_0
+(8-bit) or F16 (16-bit) version. A request takes four fields:
 
 - `file`: a 16-bit mono WAV at 16 kHz, the format Canary was trained on.
 - `model`: the model reference.
@@ -53,9 +53,10 @@ Each GGUF file records which model architecture it contains. For a
 Canary file, `llmman serve` starts a separate process that runs only
 the speech model.
 
-A model is its weights, the learned numbers in the GGUF, plus the code
-that runs them. NVIDIA's code lives in NeMo, its Python toolkit for
-speech, so running Canary anywhere else means a port.
+A model is made of the numbers that it learned in training, called
+*weights* and stored in the GGUF, and the code that runs them. NVIDIA's
+code for Canary is in NeMo, which is NVIDIA's Python toolkit for
+speech, so running Canary anywhere else needs a port of that code.
 
 A C++ port, [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp),
 exists, but it bundles its own patched ggml, which would put two copies
@@ -81,9 +82,10 @@ The pipeline runs four stages, in order:
 
 ![The front end: 1, samples, one pressure reading every 62.5 microseconds; 2, cut into overlapping 25 ms frames, a new one every 10 ms; 3, each frame becomes 257 evenly spaced frequency bins, merged into 128 mel bands, narrow at low pitch and wide at high pitch; 4, the frames side by side form the log-mel spectrogram, one column per frame and one row per band](front-end.svg)
 
-A WAV holds *samples*: one pressure reading every 62.5 µs. The model
-works on *frames*, short slices over which a vowel or a
-consonant is roughly stable. The recipe comes from NeMo and from the
+A WAV holds the pressure readings that a microphone takes every
+62.5 µs, called *samples*. The model works on *frames*, which are short
+slices of samples over which a vowel or a consonant stays roughly
+stable. The recipe comes from NeMo and from the
 GGUF's front-end metadata:
 
 1. **Pre-emphasis:** subtract 0.97 times the previous sample, which
@@ -102,15 +104,15 @@ GGUF's front-end metadata:
 
 A man's and a woman's voice sit a few bins apart and sound clearly
 different, yet a gap that size in the hiss of an "s" goes unheard. So
-the front end groups neighbouring bins into 128 *mel bands*, frequency
-slices narrow at low pitches and wide at high ones, and blends each
-band's energy into one number. Going from 257 numbers per frame to 128
-loses detail that we barely hear. A logarithm, which tracks
-loudness the way we hear it, and a rescaling of each band to an
-average of 0 and a spread of 1 over the clip finish the front end.
+the front end groups neighbouring bins into 128 *mel bands*, which are
+frequency slices narrow at low pitches and wide at high ones, and blends
+each band's energy into one number. Going from 257 numbers per frame to
+128 loses detail that we barely hear. A logarithm, which tracks loudness
+the way we hear it, and a rescaling of each band to an average of 0 and
+a spread of 1 over the clip finish the front end.
 
-What the front end hands on is a *log-mel spectrogram*: for the test
-clip, 1,056 frames of 128 mel bands each, one frame every 10 ms.
+The front end hands on a *log-mel spectrogram*, which for the test clip
+holds 1,056 frames of 128 mel bands each, one frame every 10 ms.
 
 ## Encoder: from mel bands to audio vectors
 
@@ -120,41 +122,41 @@ The encoder turns the spectrogram into a short sequence of vectors, one
 per 80 ms of audio, each describing what was said around that moment.
 It first shrinks the sequence and then refines it.
 
-The first phase, **shrinking**, passes the frames through three
+The first phase, called **shrinking**, passes the frames through three
 *convolutions*, one after another, each with its own weights.
 
 A convolution reads a group of three neighbouring frames and combines
-them into one new frame. To do that, it multiplies each number in the group by one
-of the model's weights and adds up the results. Each group starts two
-frames after the previous one, so the groups overlap. Frames 1 to 3
-make the first new frame, frames 3 to 5 the second, frames 5 to 7 the
-third. Starting a new group every two frames gives half as many frames
-out as went in.
+them into one new frame. To do that, it multiplies each number in the
+group by one of the model's weights and adds up the results. Each group
+starts two frames after the previous one, so the groups overlap. Frames
+1 to 3 make the first new frame, frames 3 to 5 the second, frames 5 to 7
+the third. Starting a new group every two frames gives half as many
+frames out as went in.
 
 The first convolution turns 1,056 frames into 528, the second 528 into
 264, and the third 264 into 132; each also halves the 128 bands, down
-to 16. A last step, a *projection*,
+to 16. A last step, called a *projection*,
 multiplies each of the 132 results by another set of weights to give a
 vector of 1,024 values.
 
-The second phase, **refining**, runs 32 *blocks* over the 132 vectors, one
-after another. A block is a fixed sequence of steps with its own
-learned weights. All 32 have the same steps and differ only in their
-weights. Each block keeps the vectors' count and size, and updates every
-vector three ways:
+The second phase, called **refining**, runs 32 *blocks* over the 132
+vectors, one after another. A block is a fixed sequence of steps with
+its own learned weights. All 32 have the same steps and differ only in
+their weights. Each block keeps the vectors' count and size, and updates
+every vector three ways:
 
 - *Attention:* each vector looks at all 132 vectors and draws on the
   ones that matter to it, such as the rest of its word or sentence.
   Because every vector looks at every other one, the work grows with the
   square of their number, so shrinking 1,056 frames to 132 vectors makes
   this step about 64 times cheaper.
-- *Convolution:* the same kind of operation as in shrinking, over
-  groups of 9 vectors (one vector and its 4 neighbours on each side,
-  about 0.7 s of audio) that start one vector apart, so all 132 stay.
-  It catches where one phoneme ends and the next begins.
-- *Feed-forward:* a small network, a short chain of calculations with
-  its own weights, refines each vector on its own, using what attention
-  and convolution gathered.
+- *Convolution:* the same kind of operation as in shrinking, over groups
+  of 9 vectors (one vector and its 4 neighbours on each side, about 0.7
+  s of audio) that start one vector apart, so all 132 stay. It catches
+  where one phoneme ends and the next begins.
+- *Feed-forward:* a small network, which is a short chain of
+  calculations that has its own weights, refines each vector on its own,
+  using what attention and convolution gathered.
 
 > Attention plus feed-forward is a *Transformer* block, the same block
 > inside every LLM. Adding the convolution makes it a *Conformer*
@@ -213,12 +215,11 @@ NeMo's, on one English clip and with both GGUF versions of Canary,
 Q8_0 and F16.
 
 We ran the clip through NeMo and saved every stage's *activations*,
-the numbers one stage hands to the next. They are the mel spectrogram,
-the
-1,024-value vectors after the shrink and after several encoder blocks,
-and the decoder's score for every possible next token. Then we ran the
-same clip through llmman and compared the two sets of numbers position
-by position.
+which are the numbers that one stage hands to the next. They are the mel
+spectrogram, the 1,024-value vectors after the shrink and after several
+encoder blocks, and the decoder's score for every possible next token.
+Then we ran the same clip through llmman and compared the two sets of
+numbers position by position.
 
 For each stage, the gap between llmman's numbers and NeMo's is a
 percentage of a typical NeMo number. For instance, 0.1% means the two
@@ -235,12 +236,12 @@ agree to about one part in a thousand.
 
 Q8_0 and F16 are the two published versions of Canary, with 8-bit and
 16-bit weights. The front end uses no weights, so it gives the same
-numbers with both. Every step from the encoder on multiplies by
-weights, which F16 stores in *half precision*, a 16-bit format with
+numbers with both. Every step from the encoder on multiplies by weights,
+which F16 stores in *half precision*, which is a 16-bit format with
 about three significant digits. That keeps its encoder near 0.05% from
-NeMo, the closest the format allows, while Q8_0 keeps less detail and
-lands about ten times further away. Both still produce NeMo's 33
-tokens and text.
+NeMo, which is the closest that the format allows, while Q8_0 keeps less
+detail and lands about ten times further away. Both still produce NeMo's
+33 tokens and text.
 
 ## Next
 
