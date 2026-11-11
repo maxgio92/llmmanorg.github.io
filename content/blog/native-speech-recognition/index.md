@@ -167,8 +167,8 @@ two kinds of attention:
 
 - *Self-attention* looks at the tokens written so far, so the text
   stays coherent.
-- *Cross-attention* looks at the encoder's 132 vectors, so the text
-  follows the audio.
+- *Cross-attention* looks at the 132 audio vectors the encoder produced,
+  so the text follows the audio.
 
 It starts from a prompt of ten token ids from the GGUF metadata: start
 of transcript, source and target language (the same, for
