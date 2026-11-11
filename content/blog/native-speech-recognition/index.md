@@ -189,9 +189,6 @@ right after these ten:
 9. `<|notimestamp|>`: no timestamps.
 10. `<|nodiarize|>`: no speaker labels.
 
-A language the file does not list is refused before any computation
-starts.
-
 Each step takes the most likely next token, until the model emits end
 of text or a length cap is reached.
 
