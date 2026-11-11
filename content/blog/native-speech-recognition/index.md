@@ -52,8 +52,9 @@ A model is its weights, the learned numbers in the GGUF, plus the code
 that runs them. NVIDIA's code lives in NeMo, its Python toolkit for
 speech, so running Canary anywhere else means a port.
 
-A C++ port exists, but it bundles its own patched ggml, which would put
-two copies of the library in one process. Every operation Canary needs
+A C++ port, [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp),
+exists, but it bundles its own patched ggml, which would put two copies
+of the library in one process. Every operation Canary needs
 is already in the ggml llmman loads, so llmman's port is Rust on that
 library, like its LTX-2.3 and Qwen-Image pipelines. The front end is
 plain Rust, because ggml has no Fourier transform.
@@ -83,7 +84,7 @@ GGUF's front-end metadata:
 1. **Pre-emphasis:** subtract 0.97 times the previous sample, which
    lifts the quieter consonants.
 2. **Padding:** 256 zeros on each side, so the first frame is centred
-   on the first sample. NeMo pads with zeros too; the C++ port mirrors
+   on the first sample. NeMo pads with zeros too; transcribe.cpp mirrors
    the edge samples, and its notes record a visible change in the mel
    bands from that choice alone.
 3. **Framing:** 400 samples (25 ms) every 160 (10 ms). Frames overlap,
@@ -260,5 +261,7 @@ The work is tracked in the project's
 is described on its [model card](https://huggingface.co/nvidia/canary-1b-v2),
 and its reference implementation lives in [NeMo](https://github.com/NVIDIA/NeMo).
 The compute library is [ggml](https://github.com/ggml-org/ggml), shared
-with [llama.cpp](https://github.com/ggml-org/llama.cpp). Questions are
+with [llama.cpp](https://github.com/ggml-org/llama.cpp). The C++ port is
+[transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), which also publishes the Canary GGUF
+used here. Questions are
 welcome at [github.com/llmmanorg/llmman](https://github.com/llmmanorg/llmman).
