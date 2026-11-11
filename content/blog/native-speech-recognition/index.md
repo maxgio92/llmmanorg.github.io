@@ -83,27 +83,37 @@ The pipeline runs four stages, in order:
 
 ![The front end: 1, samples, one pressure reading every 62.5 microseconds; 2, cut into overlapping 25 ms frames, a new one every 10 ms; 3, each frame becomes 257 evenly spaced frequency bins, merged into 128 mel bands, narrow at low pitch and wide at high pitch; 4, the frames side by side form the log-mel spectrogram, one column per frame and one row per band](front-end.svg)
 
+### Cutting the sound into frames
+
 A WAV holds the pressure readings that a microphone takes every
 62.5 µs, called *samples*. The model works on *frames*, which are short
 slices of samples over which a vowel or a consonant stays roughly
-stable. The recipe comes from NeMo and from the
-GGUF's front-end metadata:
+stable. The recipe comes from NeMo and from the GGUF's front-end
+metadata:
 
-1. **Pre-emphasis:** each sample has 0.97 times the previous sample
-   subtracted from it, which lifts the quieter consonants.
-2. **Padding:** 256 zeros are added on each side to centre the first
-   frame on the first sample, as NeMo does, while the transcribe.cpp
-   port mirrors the edge samples and its notes record that this choice
-   alone visibly changes the mel bands.
-3. **Framing:** the samples are cut into frames of 400 samples (25 ms),
-   with a new frame starting every 160 samples (10 ms), so the frames
-   overlap and a sound cut at the edge of one frame stays whole in the
-   next.
-4. **Hann window:** each frame's edges are faded to zero, because a
-   sharp cut would add energy that the sound never had.
-5. **Power spectrum:** a 512-point Fourier transform splits 0 to 8 kHz
-   into 257 *bins*, which are slices 31.25 Hz wide, and measures the
-   frame's energy in each one.
+1. **Lift the consonants** (*pre-emphasis*): each sample has 0.97 times
+   the previous sample subtracted from it, which makes the quieter
+   consonants stand out.
+2. **Pad the edges:** 256 zeros are added on each side to centre the
+   first frame on the first sample, as NeMo does, while the
+   transcribe.cpp port mirrors the edge samples and its notes record
+   that this choice alone visibly changes the mel bands.
+3. **Cut into frames:** the samples are cut into frames of 400 samples
+   (25 ms), with a new frame starting every 160 samples (10 ms), so the
+   frames overlap and a sound cut at the edge of one frame stays whole
+   in the next.
+4. **Fade the frame edges** (*Hann window*): each frame's edges are
+   faded to zero, because a sharp cut would add energy that the sound
+   never had.
+
+### Measuring the pitches in each frame
+
+A *Fourier transform*, which is a standard calculation that finds the
+pitches a sound contains, then splits each frame's range of 0 to 8 kHz
+into 257 *bins*, which are slices 31.25 Hz wide, and measures the
+frame's energy in each one.
+
+### Grouping the bins into mel bands
 
 A man's and a woman's voice sit a few bins apart and sound clearly
 different, yet a gap that size in the hiss of an "s" goes unheard. So
