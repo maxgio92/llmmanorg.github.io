@@ -170,8 +170,11 @@ two kinds of attention:
 - *Cross-attention* looks at the 132 audio vectors the encoder produced,
   so the text follows the audio.
 
-It starts from a prompt of ten token ids from the GGUF metadata, in
-this order:
+Before writing any word, the decoder reads a prompt of ten special
+tokens from the GGUF metadata. Canary learned them in training as
+instructions for the task, and they sit at the start of the token
+sequence as if the decoder had written them, so self-attention sees
+them at every step. The first real word becomes token 11. In order:
 
 - `▁` and `<|startofcontext|>`: an empty context, with no earlier text
   to continue.
