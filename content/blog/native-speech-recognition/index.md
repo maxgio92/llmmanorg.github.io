@@ -115,7 +115,7 @@ The encoder turns the spectrogram into a short sequence of vectors, one
 per 80 ms of audio, each describing what was said around that moment.
 It first shrinks the sequence and then refines it.
 
-The first phase, shrinking, passes the frames through three
+The first phase, **shrinking**, passes the frames through three
 *convolutions*, one after another, each with its own weights.
 
 A convolution reads a group of three neighbouring frames and combines
@@ -131,20 +131,20 @@ The first convolution turns 1,056 frames into 528, the second 528 into
 multiplies each of the 132 results by another set of weights to give a
 vector of 1,024 values.
 
-The second phase, refining, runs 32 *blocks* over the 132 vectors, one
+The second phase, **refining**, runs 32 *blocks* over the 132 vectors, one
 after another. A block is a fixed sequence of steps with its own
 learned weights; all 32 have the same steps and differ only in their
 weights. Each block keeps the vectors' count and size, and updates every
 vector three ways:
 
-- **Attention:** the vector looks at all 132 and pulls in the ones that
+- *Attention:* the vector looks at all 132 and pulls in the ones that
   matter to it, such as the rest of its word or sentence. Its cost grows
   with the square of the vector count, so the 8x shrink makes it about
   64x cheaper.
-- **Convolution:** the vector is mixed with its 4 neighbours on each
+- *Convolution:* the vector is mixed with its 4 neighbours on each
   side, 9 in all, about 0.7 s of audio. This catches local sound
   patterns, such as where one phoneme ends and the next begins.
-- **Feed-forward:** a small network reworks each vector on its own,
+- *Feed-forward:* a small network reworks each vector on its own,
   using what the other two gathered.
 
 Attention plus feed-forward is a *Transformer* block, the same block
@@ -161,9 +161,9 @@ the transcript one *token* at a time, where a token is a word or a
 piece of a word from a vocabulary of 16,384. Each of its 8 layers has
 two kinds of attention:
 
-- **Self-attention** looks at the tokens written so far, so the text
+- *Self-attention* looks at the tokens written so far, so the text
   stays coherent.
-- **Cross-attention** looks at the encoder's 132 vectors, so the text
+- *Cross-attention* looks at the encoder's 132 vectors, so the text
   follows the audio.
 
 It starts from a prompt of ten token ids from the GGUF metadata: start
