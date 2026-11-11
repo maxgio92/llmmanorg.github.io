@@ -143,10 +143,10 @@ vector three ways:
   Because every vector looks at every other one, the work grows with the
   square of their number, so shrinking 1,056 frames to 132 vectors makes
   this step about 64 times cheaper.
-- *Convolution:* each vector is combined with its 4 neighbours on each
-  side, 9 vectors in total or about 0.7 s of audio, using the same
-  multiply-and-add as in the shrinking phase. This catches local sound
-  patterns, such as where one phoneme ends and the next begins.
+- *Convolution:* the same kind of operation as in shrinking, over
+  groups of 9 vectors (one vector and its 4 neighbours on each side,
+  about 0.7 s of audio) that start one vector apart, so all 132 stay.
+  It catches where one phoneme ends and the next begins.
 - *Feed-forward:* a small network, a short chain of calculations with
   its own weights, refines each vector on its own, using what attention
   and convolution gathered.
