@@ -204,9 +204,11 @@ first, the clip answers in 3.6 s.
 
 ## Checked against NeMo
 
-A port with a wrong padding choice can still write the right words on a
-clean clip and fail quietly on the next one, so we compared every stage
-with NeMo, on one English clip and both weight files.
+A correct transcript for one clip proves little about the port. A small
+mistake in one stage, such as padding the samples differently from
+NeMo, can leave that transcript unchanged and still give wrong text on
+another recording. So we compared the output of every stage with
+NeMo's, on one English clip and with both weight files.
 
 We ran the clip through NeMo and saved every stage's *activations*,
 the numbers one stage hands to the next: the mel spectrogram, the
