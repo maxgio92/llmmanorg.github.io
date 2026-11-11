@@ -208,7 +208,8 @@ A correct transcript for one clip proves little about the port. A small
 mistake in one stage, such as padding the samples differently from
 NeMo, can leave that transcript unchanged and still give wrong text on
 another recording. So we compared the output of every stage with
-NeMo's, on one English clip and with both weight files.
+NeMo's, on one English clip and with both GGUF versions of Canary,
+Q8_0 and F16.
 
 We ran the clip through NeMo and saved every stage's *activations*,
 the numbers one stage hands to the next. They are the mel spectrogram,
@@ -231,13 +232,14 @@ agree to about one part in a thousand.
 | Decoder | 0.008% to 0.08% | 0.11% to 2.1% |
 | Prompt, output tokens and text | identical | identical |
 
-The front end has no weights, so both files match there. The F16 file
-uses *half precision*, a 16-bit format with about three significant
-digits, so each rounding can move a value by up to about 0.05%. The CPU
-matrix multiplication rounds activations to half precision too, which
-holds the F16 encoder near that 0.05% floor, while Q8_0's encoder error
-is about ten times larger. Both files still produce NeMo's 33 tokens
-and text.
+Q8_0 and F16 are the two published versions of Canary, with 8-bit and
+16-bit weights. The front end uses no weights, so it gives the same
+numbers with both. From the encoder on, every step multiplies by
+weights. F16 stores each number in *half precision*, a 16-bit format
+with about three significant digits, and that keeps its encoder near
+0.05% from NeMo, the closest the format allows. Q8_0 keeps less detail
+and lands about ten times further away. Both still produce NeMo's 33
+tokens and text.
 
 ## Next
 
