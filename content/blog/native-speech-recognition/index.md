@@ -12,8 +12,8 @@ A 10.56 s WAV goes in, and 1.7 seconds later one line of text comes out.
 
 Until now, llmman sent transcription to llama-server, which handles
 speech by feeding audio into an existing chat model. NVIDIA's Canary 1B
-v2 has its own decoder, trained only to write transcripts, and llama.cpp
-has no code for it. llmman now runs Canary itself, on the ggml library
+v2 has its own decoder, which is the part that writes the text and is
+trained only to write transcripts, and llama.cpp has no code for it. llmman now runs Canary itself, on the ggml library
 it already uses for image and video models.
 
 <!-- more -->
@@ -70,8 +70,9 @@ plain Rust, because ggml has no Fourier transform.
 The pipeline runs four stages, in order:
 
 1. The front end turns samples into mel bands, which are numbers that
-   describe the sound's pitch content.
-2. The encoder turns mel bands into audio vectors.
+   describe how much energy the sound has at each pitch.
+2. The encoder turns mel bands into audio vectors, which are lists of
+   numbers that each describe a short stretch of sound.
 3. The decoder turns those vectors into token ids.
 4. A table lookup turns the ids into text.
 
@@ -83,7 +84,7 @@ The pipeline runs four stages, in order:
 
 ![The front end: 1, samples, one pressure reading every 62.5 microseconds; 2, cut into overlapping 25 ms frames, a new one every 10 ms; 3, each frame becomes 257 evenly spaced frequency bins, merged into 128 mel bands, narrow at low pitch and wide at high pitch; 4, the frames side by side form the log-mel spectrogram, one column per frame and one row per band](front-end.svg)
 
-### Cutting the sound into frames
+### Cutting the samples into frames
 
 A WAV holds the pressure readings that a microphone takes every
 62.5 µs, called *samples*. The model works on *frames*, which are short
@@ -116,7 +117,7 @@ energy in each one.
 To give you an example, think of a man's voice and a woman's voice.
 They sit only a few bins apart, and you can tell them apart at once,
 yet a gap of the same size in the hiss of an "s" goes unheard, because
-our ears are much less sensitive at high pitches. That is why the front
+our ears are much worse at telling high pitches apart. That is why the front
 end groups neighbouring bins into 128 *mel bands*, which are frequency
 slices narrow at low pitches and wide at high ones, and blends each
 band's energy into one number. Going from 257 numbers per frame to
@@ -154,7 +155,7 @@ the third. Starting a new group every two frames gives half as many
 frames out as went in.
 
 The first convolution turns 1,056 frames into 528, the second 528 into
-264, and the third 264 into 132; each also halves the 128 bands, down
+264, and the third 264 into 132. Each also halves the 128 bands, down
 to 16. A last step, called a *projection*,
 multiplies each of the 132 new frames by another set of weights to give a
 vector of 1,024 values.
@@ -179,8 +180,8 @@ the vectors' count and size, and updates every vector three ways:
   calculations that has its own weights, refines each vector on its own,
   using what attention and convolution gathered.
 
-> Attention plus feed-forward is a *Transformer* block, the same block
-> inside every LLM. Adding the convolution makes it a *Conformer*
+> Attention plus feed-forward is a *Transformer* block, which is the
+> same block inside every LLM. Adding the convolution makes it a *Conformer*
 > block, and *FastConformer* is NVIDIA's version with the 8x shrink in
 > front.
 
@@ -190,7 +191,7 @@ the vectors' count and size, and updates every vector three ways:
 
 The decoder is a Transformer like the one in a chat model. It writes
 the transcript one *token* at a time, where a token is a word or a
-piece of a word from a vocabulary of 16,384. Each of its 8 layers has
+piece of a word from a vocabulary of 16,384. Each of its 8 blocks has
 two kinds of attention:
 
 - *Self-attention* looks at the tokens written so far, so the text
@@ -258,9 +259,9 @@ agree to about one part in a thousand.
 Q8_0 and F16 are the two published versions of Canary, with 8-bit and
 16-bit weights. The front end uses no weights, so it gives the same
 numbers with both. With the F16 file, the CPU rounds the numbers inside
-every multiplication, from the encoder on, to *half precision*, which
-is a 16-bit format with about three significant digits. That keeps the
-encoder near 0.05% from NeMo, while Q8_0 keeps less detail and ends up
+every multiplication by a weight, from the encoder on, to *half
+precision*, which is a 16-bit format with about three significant
+digits. That puts the F16 encoder about 0.05% from NeMo, while Q8_0 keeps less detail and ends up
 about ten times further away. Both still produce NeMo's 33 tokens and
 text.
 
