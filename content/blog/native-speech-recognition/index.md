@@ -106,20 +106,20 @@ metadata:
    faded to zero, because a sharp cut would add energy that the sound
    never had.
 
-### Measuring the pitches in each frame
+### Turning each frame into mel bands
 
 A *Fourier transform*, which is a standard calculation that finds the
-pitches a sound contains, then splits each frame's range of 0 to 8 kHz
-into 257 *bins*, which are slices 31.25 Hz wide, and measures the
-frame's energy in each one.
+pitches a sound contains, splits each frame's range of 0 to 8 kHz into
+257 *bins*, which are slices 31.25 Hz wide, and measures the frame's
+energy in each one.
 
-### Grouping the bins into mel bands
-
-A man's and a woman's voice sit a few bins apart and sound clearly
-different, yet a gap that size in the hiss of an "s" goes unheard. So
-the front end groups neighbouring bins into 128 *mel bands*, which are
-frequency slices narrow at low pitches and wide at high ones, and blends
-each band's energy into one number. Going from 257 numbers per frame to
+To give you an example, think of a man's voice and a woman's voice.
+They sit only a few bins apart, and you can tell them apart at once,
+yet a gap of the same size in the hiss of an "s" goes unheard, because
+our ears are much less sensitive at high pitches. That is why the front
+end groups neighbouring bins into 128 *mel bands*, which are frequency
+slices narrow at low pitches and wide at high ones, and blends each
+band's energy into one number. Going from 257 numbers per frame to
 128 loses detail that we barely hear.
 
 The front end ends with two adjustments. A logarithm turns each energy
