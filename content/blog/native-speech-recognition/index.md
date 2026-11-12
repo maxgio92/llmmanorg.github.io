@@ -41,8 +41,8 @@ the GGUF file that holds the model from Hugging Face, in its Q8_0
 - `language`: `en` by default.
 - `response_format`: `json`, the only format.
 
-Other fields and values are refused, and so are requests to the chat,
-completions and embeddings endpoints.
+Other fields and values are refused, and so is every endpoint other
+than `/v1/audio/transcriptions`.
 `llmman run` does not transcribe yet.
 
 Files are capped at 4 MiB, about 131 s of audio. Anything longer than
@@ -51,7 +51,7 @@ was trained on utterances up to 40 s.
 
 ## Why a pipeline of its own
 
-Each GGUF file records which model architecture it contains. For a
+Each GGUF file records which kind of model it holds. For a
 Canary file, `llmman serve` starts a separate process that runs only
 the speech model.
 
@@ -67,7 +67,7 @@ Canary needs is already in the ggml llmman loads, so llmman's port is
 Rust on that library, like its video (LTX-2.3) and image (Qwen-Image)
 pipelines.
 
-![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel bands step produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder shrinks it eightfold to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and the detokenizer turns them into text](pipeline.svg)
+![The speech pipeline: clip.wav goes through the WAV parser as 16 kHz samples, framing cuts 1,056 frames, the mel bands step produces a 1,056 by 128 log-mel spectrogram, the Conformer encoder shrinks it eightfold to 132 vectors of 1,024, the decoder reads them through cross-attention together with a ten-id task prompt and emits 33 token ids, and a table lookup turns them into text](pipeline.svg)
 
 The pipeline runs four stages, in order:
 
@@ -85,7 +85,7 @@ The pipeline runs four stages, in order:
 
 ## Front end: from samples to mel bands
 
-![The front end: 1, samples, one pressure reading every 62.5 microseconds; 2, cut into overlapping 25 ms frames, a new one every 10 ms; 3, each frame becomes 257 evenly spaced frequency bins, merged into 128 mel bands, narrow at low pitch and wide at high pitch; 4, the frames side by side form the log-mel spectrogram, one column per frame and one row per band](front-end.svg)
+![The front end: samples, one pressure reading every 62.5 microseconds, are cut into overlapping 25 ms frames, a new one every 10 ms; each frame becomes 257 evenly spaced frequency bins, merged into 128 mel bands, narrow at low pitch and wide at high pitch; the frames side by side form the log-mel spectrogram, one column per frame and one row per band](front-end.svg)
 
 ### Cutting the samples into frames
 
@@ -167,8 +167,8 @@ weights to give a vector of 1,024 values.
 ### Refining the 132 vectors through 32 encoder blocks
 
 The encoder runs 32 *blocks* over the 132 vectors, one after another. A
-block is a fixed sequence of steps with its own learned weights. All 32
-have the same steps and differ only in their weights. Each block keeps
+block is a fixed sequence of steps with its own learned weights, and all
+32 share the same steps and differ only in their weights. Each block keeps
 the vectors' count and size, and updates every vector three ways:
 
 - *Attention:* each vector looks at all 132 vectors and draws on the
@@ -297,7 +297,7 @@ to:
 The work is tracked in the project's
 [tracking issue](https://github.com/llmmanorg/llmman/issues/713). The model
 is described on its [model card](https://huggingface.co/nvidia/canary-1b-v2),
-and its reference implementation lives in [NeMo](https://github.com/NVIDIA/NeMo).
+and its reference implementation is in [NeMo](https://github.com/NVIDIA/NeMo).
 The compute library is [ggml](https://github.com/ggml-org/ggml), shared
 with [llama.cpp](https://github.com/ggml-org/llama.cpp). The C++ port is
 [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp), which also publishes the Canary GGUF
